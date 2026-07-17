@@ -1,4 +1,4 @@
 interface:
-  display_name: "WeChat Group Stock Dashboard"
-  short_description: "Build and deploy chat stock dashboards."
+  display_name: "群股神交流面板"
+  short_description: "从群聊生成股票复盘静态面板。"
   default_prompt: "Build or deploy a stock dashboard from a WeChat-style group chat markdown export."

@@ -1,29 +1,27 @@
-# WeChat Group Stock Dashboard
+# 群股神交流面板
 
-Turn a WeChat-style group chat markdown export into a static stock dashboard.
+把微信群聊 markdown 导出文件转换成一个静态股票分析页面。
 
-中文文档：[README.zh-CN.md](README.zh-CN.md)
+这个仓库只做本地分析和静态页面生成，不需要启动服务。Cloudflare Pages
+部署是可选项。
 
-This project was extracted from a private local workflow and cleaned up for
-reuse. It focuses on four things:
+> 仅用于个人复盘和研究，不构成投资建议。
 
-- stock mention detection
-- group sentiment, sector, and market-context summaries
-- Google Finance quote snapshots by default
-- intraday and speaker-centric charts by default
+## 功能
 
-It does not require a server. The output is static HTML/JSON that can be opened
-locally or hosted on any static host. Cloudflare Pages deployment is optional.
+- 标记群里出现的股票
+- 统计股票、情绪、板块、大盘相关讨论
+- 默认抓取行情快照：Google Finance 优先，新浪报价兜底
+- 默认抓取 A 股分时线，并把群聊发言标在折线上
+- 生成人物维度页面：按发言人查看提到过的股票；默认抓取日 K
+- 可选发布到 Cloudflare Pages
 
-> This project is for personal data analysis and research. It is not financial
-> advice.
+## 输入格式
 
-## Input Format
-
-The parser expects markdown shaped like this:
+支持类似下面的 markdown：
 
 ```markdown
-# 聊天记录: My Group
+# 聊天记录: 示例股票交流群
 
 **消息数量:** 3
 
@@ -32,186 +30,171 @@ The parser expects markdown shaped like this:
 - [2026-07-17 10:10] me: 福达合金看看
 ```
 
-`wechat-cli export --format markdown` produces compatible output, but the code
-does not depend on a specific exporter as long as the lines follow the timestamp
-format above.
+如果你用 `wechat-cli export --format markdown` 导出，格式通常可以直接使用。
 
-## Quick Start
+## 最快体验
 
-Install the local Python environment, build the sample dashboard, and open the
-generated static HTML:
+一条命令安装本地环境、用示例聊天生成页面并打开静态 HTML：
 
 ```bash
 ./start.sh
 ```
 
-Use your own chat export:
+使用自己的聊天导出：
 
 ```bash
 ./start.sh --chat-md /path/to/chat.md
 ```
 
-Useful variants:
+常用变体：
 
 ```bash
 ./start.sh --chat-md /path/to/chat.md --no-market-data
 ./start.sh --chat-md /path/to/chat.md --market-channel sina
-./start.sh --group-name "My Group"
+./start.sh --group-name "你的群名"
 ./start.sh --install-wechat-cli --setup-only
 ./start.sh --install-skill
 ```
 
-The generated page is `exports/group_stock_dashboard/index.html`. No server is
-started; the script opens the static file when possible.
+输出文件：
 
-## Manual Build
-
-```bash
-python3 build_stock_mentions.py examples/sample_chat.md \
-  --html exports/sample/index.html \
-  --json exports/sample/stock_mentions.json \
-  --markdown exports/sample/stock_mentions.md \
-  --no-google-finance
+```text
+exports/group_stock_dashboard/index.html
 ```
 
-Open `exports/sample/index.html` in a browser.
+项目不启动服务；脚本会在本机可用时直接打开生成的静态 HTML。
 
-Or use the build wrapper directly. It fetches market snapshots, intraday lines, and
-speaker-page daily K data by default. Snapshot channel `auto` keeps Google
-Finance as the primary source and falls back to Sina quote when needed:
+## 手动生成
+
+默认会抓行情快照、分时行情和人物页日 K；行情快照默认 `auto` 渠道：
+Google Finance 优先，失败时用新浪报价兜底。会生成主看板和人物页：
 
 ```bash
 CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh
 ```
 
-## Skip Market Data
+输出：
+
+```text
+exports/group_stock_dashboard/index.html
+```
+
+直接用浏览器打开即可。
+
+## 从已有聊天导出生成完整看板
+
+```bash
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
+```
+
+默认会执行：
+
+1. 识别股票并生成基础 JSON
+2. 抓取行情快照、分时线和人物页日 K
+3. 生成最终 HTML
+4. 更新历史记录
+
+如果只想本地快速生成、不抓外部行情，加 `--no-market-data`：
 
 ```bash
 CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --no-market-data
 ```
 
-The speaker page is still generated in this mode, but its daily K data is
-marked as disabled.
-
-To force a snapshot channel:
+如果要强制某个行情快照渠道：
 
 ```bash
 MARKET_DATA_CHANNEL=google CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
 MARKET_DATA_CHANNEL=sina CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
 ```
 
-You can also run the market-data steps individually:
+## 从 wechat-cli 直接导出
 
 ```bash
-python3 fetch_google_finance_snapshot.py \
-  exports/sample/stock_mentions.json \
-  --output exports/sample/google_finance_snapshot.json \
-  --channel auto
-
-python3 fetch_stock_trends.py \
-  exports/sample/stock_mentions.json \
-  --output exports/sample/stock_trends.json
-
-python3 build_stock_mentions.py examples/sample_chat.md \
-  --html exports/sample/index.html \
-  --json exports/sample/stock_mentions.json \
-  --markdown exports/sample/stock_mentions.md \
-  --google-finance exports/sample/google_finance_snapshot.json \
-  --stock-trends exports/sample/stock_trends.json
+WECHAT_GROUP_NAME="你的群名" ./scripts/one_click_deploy.sh
 ```
 
-Google Finance and Sina quote endpoints are unofficial scraping sources here;
-they can change or rate-limit. Cache outputs when possible.
-
-## Speaker Dashboard
-
-After you have multiple daily folders like:
-
-```text
-exports/group_stock_dashboard/2026-07-15/stock_mentions.json
-exports/group_stock_dashboard/2026-07-16/stock_mentions.json
-```
-
-build the speaker-centric page:
+更推荐直接用一键脚本：
 
 ```bash
-python3 build_speaker_stock_dashboard.py \
-  --input-dir exports/group_stock_dashboard \
-  --output exports/group_stock_dashboard/speakers.html \
-  --json exports/group_stock_dashboard/speakers.json \
-  --daily-k exports/group_stock_dashboard/speaker_daily_k.json \
-  --days 15
+./start.sh --group-name "你的群名"
 ```
 
-## Daily Pipeline
-
-If you use `wechat-cli`, set the group name and run the daily script:
-
-```bash
-WECHAT_GROUP_NAME="My Group" ./scripts/daily_group_stock_dashboard.sh
-```
-
-`./start.sh --group-name "My Group"` checks for `wechat-cli` automatically. If
-it is missing, the script installs `@canghe_ai/wechat-cli` locally under
-`.tools/` and passes that binary to the export step. Override the npm package
-with `WECHAT_CLI_PACKAGE=...` if you need a different source. To install it
-without building a dashboard:
+它会自动检查 `wechat-cli`，如果本机没有，就把 `@canghe_ai/wechat-cli`
+安装到项目本地 `.tools/` 目录，并把这个本地命令传给导出流程。如果你要换安装来源，可以设置
+`WECHAT_CLI_PACKAGE=...`。只安装不生成页面也可以：
 
 ```bash
 ./start.sh --install-wechat-cli --setup-only
 ```
 
-The script writes to `exports/group_stock_dashboard/YYYY-MM-DD/`, updates
-`page_history.json`, refreshes `index.html`, and builds `speakers.html`. It
-fetches market snapshots, intraday lines, and speaker-page daily K data by
-default. `MARKET_DATA_CHANNEL=auto` uses Google Finance first and Sina quote as
-fallback. Add `--no-market-data` for a lightweight/offline run.
-
-To display exported sender `me` as another name:
+如果想把导出的 `me` 显示成自己的名字：
 
 ```bash
-CHAT_STOCK_SELF_NAME="your-name" WECHAT_GROUP_NAME="My Group" \
-  ./scripts/daily_group_stock_dashboard.sh
+CHAT_STOCK_SELF_NAME="your-name" \
+WECHAT_GROUP_NAME="你的群名" \
+./scripts/one_click_deploy.sh
 ```
 
-## Optional Cloudflare Pages
+## 一键部署到 Cloudflare Pages
 
-Install and log in to Wrangler first:
+先安装并登录 Wrangler：
 
 ```bash
 npm install -g wrangler
 wrangler login
 ```
 
-Then deploy:
+首次创建项目并发布：
 
 ```bash
-CF_PAGES_PROJECT_NAME=group-stock-dashboard \
 CHAT_MD=/path/to/chat.md \
+CF_PAGES_PROJECT_NAME=group-stock-dashboard \
 ./scripts/one_click_deploy.sh --deploy --create-project
 ```
 
-Add `--no-market-data` when you want to deploy without Google Finance, intraday
-chart data, or speaker-page daily K data:
+之后发布：
+
+```bash
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --deploy
+```
+
+也可以通过群名导出并部署：
+
+```bash
+WECHAT_GROUP_NAME="你的群名" ./scripts/one_click_deploy.sh --deploy
+```
+
+如果部署时也想跳过行情快照、分时行情和人物页日 K：
 
 ```bash
 CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --no-market-data --deploy
 ```
 
-Backfill gently:
+## 回填最近 15 天
+
+默认每天之间间隔 10 分钟，避免对本地导出和行情接口太激进：
 
 ```bash
-WECHAT_GROUP_NAME="My Group" \
-./scripts/backfill_group_stock_dashboard.sh --days 15 --sleep-seconds 600 --deploy
+WECHAT_GROUP_NAME="你的群名" \
+./scripts/backfill_group_stock_dashboard.sh --days 15 --deploy
 ```
 
-Add `--no-market-data` when you want to skip Google Finance, intraday snapshots,
-and speaker-page daily K data for each day.
+默认会每天抓行情快照、分时行情和人物页日 K。如果要跳过外部行情，再加：
 
-## Configure Stocks
+```bash
+--no-market-data
+```
 
-The stock dictionary and sector rules currently live in
-`build_stock_mentions.py`:
+先看会跑哪些日期：
+
+```bash
+WECHAT_GROUP_NAME="你的群名" \
+./scripts/backfill_group_stock_dashboard.sh --days 15 --dry-run
+```
+
+## 自定义股票词典
+
+目前股票词典在 `build_stock_mentions.py` 里：
 
 - `STOCKS`
 - `SECTOR_RULES`
@@ -219,28 +202,45 @@ The stock dictionary and sector rules currently live in
 - `BEARISH_WORDS`
 - `MARKET_WORDS`
 
-The included dictionary is intentionally small and opinionated. Extend it for
-your own market universe before relying on the output.
+这是一个小而偏手工的词典。开源版默认不会覆盖全部 A 股、港股、美股简称。
+如果你要用于自己的群，建议先补充常见简称。
 
-## Customize The Pages
+## 自定义页面
 
-The generated files remain standalone static HTML, but the source UI is split
-into templates:
+最终产物仍然是单个可直接打开的静态 HTML，但源码里的页面已经拆成模板：
 
 - `templates/stock_mentions.html`
 - `templates/stock_mentions.js`
 - `templates/speaker_dashboard.html`
 - `templates/speaker_dashboard.js`
 
-Python scripts only inject escaped page metadata and JSON data into these
-templates. Edit the template files when changing layout, CSS, or browser-side
-interactions.
+Python 只负责注入页面元信息和 JSON 数据。改布局、样式、浏览器交互时，优先改这些模板文件。
 
-## Privacy
+## Codex Skill
 
-Never commit `exports/`, logs, `.env`, or raw chat exports. They are ignored by
-default. See `PRIVACY.md`.
+仓库里带了一个可选 Skill：
 
-## License
+```text
+codex-skill/wechat-group-stock-dashboard/
+```
 
-MIT
+安装方式示例：
+
+```bash
+mkdir -p ~/.codex/skills
+cp -R codex-skill/wechat-group-stock-dashboard ~/.codex/skills/
+```
+
+之后可以直接让 Codex 使用这个 skill 来生成或部署群股神交流面板。
+
+## 隐私
+
+不要提交：
+
+- `exports/`
+- 原始聊天记录
+- `.env`
+- Cloudflare token
+- 日志
+
+这些默认都已经在 `.gitignore` 里。

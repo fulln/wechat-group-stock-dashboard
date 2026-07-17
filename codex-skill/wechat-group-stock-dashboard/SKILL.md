@@ -1,11 +1,11 @@
 ---
 name: wechat-group-stock-dashboard
-description: Generate, update, or deploy static stock dashboards from WeChat-style group chat markdown exports. Use when the user asks to analyze group chat stock mentions, build a stock dashboard, add Google Finance or intraday line charts, create a speaker stock page, backfill daily pages, or deploy the generated static site to Cloudflare Pages.
+description: 生成、更新或部署「群股神交流面板」：从微信群聊 markdown 导出里识别股票、统计情绪/板块/大盘线索、抓取行情快照和分时图，并生成静态复盘页面。Use when the user asks to analyze group chat stock mentions, build a stock dashboard, add Google Finance or intraday line charts, create a speaker stock page, backfill daily pages, or deploy the generated static site to Cloudflare Pages.
 ---
 
-# WeChat Group Stock Dashboard
+# 群股神交流面板
 
-Use this skill to operate the `wechat-group-stock-dashboard` repository.
+Use this skill to operate the `wechat-group-stock-dashboard` repository for 「群股神交流面板」.
 
 ## First Checks
 

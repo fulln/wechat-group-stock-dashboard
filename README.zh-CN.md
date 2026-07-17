@@ -1,4 +1,4 @@
-# 微信群聊股票看板
+# 群股神交流面板
 
 把微信群聊 markdown 导出文件转换成一个静态股票分析页面。
 
@@ -231,7 +231,7 @@ mkdir -p ~/.codex/skills
 cp -R codex-skill/wechat-group-stock-dashboard ~/.codex/skills/
 ```
 
-之后可以直接让 Codex 使用这个 skill 来生成或部署群聊股票看板。
+之后可以直接让 Codex 使用这个 skill 来生成或部署群股神交流面板。
 
 ## 隐私
 
