@@ -2,6 +2,8 @@
 
 Turn a WeChat-style group chat markdown export into a static stock dashboard.
 
+中文文档：[README.zh-CN.md](README.zh-CN.md)
+
 This project was extracted from a private local workflow and cleaned up for
 reuse. It focuses on four things:
 
@@ -45,6 +47,12 @@ python3 build_stock_mentions.py examples/sample_chat.md \
 ```
 
 Open `exports/sample/index.html` in a browser.
+
+Or use the one-command wrapper:
+
+```bash
+CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh --no-market-data
+```
 
 ## Add Google Finance And Intraday Charts
 
@@ -119,8 +127,8 @@ Then deploy:
 
 ```bash
 CF_PAGES_PROJECT_NAME=group-stock-dashboard \
-WECHAT_GROUP_NAME="My Group" \
-./scripts/daily_group_stock_dashboard.sh --deploy --create-project
+CHAT_MD=/path/to/chat.md \
+./scripts/one_click_deploy.sh --deploy --create-project
 ```
 
 Backfill gently:

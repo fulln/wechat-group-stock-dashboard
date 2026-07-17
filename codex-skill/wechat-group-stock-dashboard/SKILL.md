@@ -1,0 +1,81 @@
+---
+name: wechat-group-stock-dashboard
+description: Generate, update, or deploy static stock dashboards from WeChat-style group chat markdown exports. Use when the user asks to analyze group chat stock mentions, build a stock dashboard, add Google Finance or intraday line charts, create a speaker stock page, backfill daily pages, or deploy the generated static site to Cloudflare Pages.
+---
+
+# WeChat Group Stock Dashboard
+
+Use this skill to operate the `wechat-group-stock-dashboard` repository.
+
+## First Checks
+
+1. Locate the repository root. Prefer the current workspace if it contains `build_stock_mentions.py` and `scripts/one_click_deploy.sh`.
+2. Never commit or publish raw chat exports, `.env`, `exports/`, logs, or tokens.
+3. Ask only when neither `CHAT_MD` nor `WECHAT_GROUP_NAME` can be inferred.
+
+## Build From Existing Markdown
+
+Use this when the user has a markdown chat export:
+
+```bash
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
+```
+
+For a quick offline demo:
+
+```bash
+CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh --no-market-data
+```
+
+## Export From WeChat
+
+Use this when `wechat-cli` is configured locally and the user gives a group name:
+
+```bash
+WECHAT_GROUP_NAME="Group Name" ./scripts/one_click_deploy.sh
+```
+
+If the user wants exported sender `me` displayed differently, set:
+
+```bash
+CHAT_STOCK_SELF_NAME="display-name"
+```
+
+## Deploy
+
+Deploy only when the user asks for publishing or deployment:
+
+```bash
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --deploy
+```
+
+For first Cloudflare Pages deploy:
+
+```bash
+CF_PAGES_PROJECT_NAME=group-stock-dashboard \
+CHAT_MD=/path/to/chat.md \
+./scripts/one_click_deploy.sh --deploy --create-project
+```
+
+If Wrangler is not logged in, tell the user to run `wrangler login` or set `CLOUDFLARE_API_TOKEN`.
+
+## Backfill
+
+For historical daily pages:
+
+```bash
+WECHAT_GROUP_NAME="Group Name" ./scripts/backfill_group_stock_dashboard.sh --days 15 --deploy
+```
+
+Use `--dry-run` before long backfills.
+
+## Verify
+
+After changes, run:
+
+```bash
+python3 -m py_compile chat_export.py build_stock_mentions.py fetch_google_finance_snapshot.py fetch_stock_trends.py update_page_history.py build_speaker_stock_dashboard.py
+CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh --no-market-data
+```
+
+Check that `exports/group_stock_dashboard/index.html` exists.
