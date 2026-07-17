@@ -57,6 +57,7 @@ Useful variants:
 ./start.sh --chat-md /path/to/chat.md --no-market-data
 ./start.sh --chat-md /path/to/chat.md --market-channel sina
 ./start.sh --group-name "My Group"
+./start.sh --install-wechat-cli --setup-only
 ./start.sh --install-skill
 ```
 
@@ -148,6 +149,16 @@ If you use `wechat-cli`, set the group name and run the daily script:
 
 ```bash
 WECHAT_GROUP_NAME="My Group" ./scripts/daily_group_stock_dashboard.sh
+```
+
+`./start.sh --group-name "My Group"` checks for `wechat-cli` automatically. If
+it is missing, the script installs `@canghe_ai/wechat-cli` locally under
+`.tools/` and passes that binary to the export step. Override the npm package
+with `WECHAT_CLI_PACKAGE=...` if you need a different source. To install it
+without building a dashboard:
+
+```bash
+./start.sh --install-wechat-cli --setup-only
 ```
 
 The script writes to `exports/group_stock_dashboard/YYYY-MM-DD/`, updates

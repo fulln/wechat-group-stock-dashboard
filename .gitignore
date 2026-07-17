@@ -8,5 +8,6 @@ exports/
 logs/
 data/
 vendor/
+.tools/
 .wrangler/
 node_modules/

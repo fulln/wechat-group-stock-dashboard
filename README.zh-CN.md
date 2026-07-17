@@ -52,6 +52,7 @@
 ./start.sh --chat-md /path/to/chat.md --no-market-data
 ./start.sh --chat-md /path/to/chat.md --market-channel sina
 ./start.sh --group-name "你的群名"
+./start.sh --install-wechat-cli --setup-only
 ./start.sh --install-skill
 ```
 
@@ -110,6 +111,20 @@ MARKET_DATA_CHANNEL=sina CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
 
 ```bash
 WECHAT_GROUP_NAME="你的群名" ./scripts/one_click_deploy.sh
+```
+
+更推荐直接用一键脚本：
+
+```bash
+./start.sh --group-name "你的群名"
+```
+
+它会自动检查 `wechat-cli`，如果本机没有，就把 `@canghe_ai/wechat-cli`
+安装到项目本地 `.tools/` 目录，并把这个本地命令传给导出流程。如果你要换安装来源，可以设置
+`WECHAT_CLI_PACKAGE=...`。只安装不生成页面也可以：
+
+```bash
+./start.sh --install-wechat-cli --setup-only
 ```
 
 如果想把导出的 `me` 显示成自己的名字：

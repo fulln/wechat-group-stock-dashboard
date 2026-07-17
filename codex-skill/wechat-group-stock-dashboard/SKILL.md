@@ -37,6 +37,19 @@ Use this when `wechat-cli` is configured locally and the user gives a group name
 WECHAT_GROUP_NAME="Group Name" ./scripts/one_click_deploy.sh
 ```
 
+For first-time setup, prefer the root script. It installs `wechat-cli` locally
+when needed:
+
+```bash
+./start.sh --group-name "Group Name"
+```
+
+To install only the local `wechat-cli` dependency without building a dashboard:
+
+```bash
+./start.sh --install-wechat-cli --setup-only
+```
+
 If the user wants exported sender `me` displayed differently, set:
 
 ```bash

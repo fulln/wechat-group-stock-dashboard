@@ -15,7 +15,11 @@ DO_DEPLOY=0
 CREATE_PROJECT=0
 OPEN_PAGE=1
 INSTALL_SKILL=0
+INSTALL_WECHAT_CLI="${INSTALL_WECHAT_CLI:-0}"
+SETUP_ONLY=0
 OUT_DIR="${OUT_DIR:-$ROOT/exports/group_stock_dashboard}"
+TOOLS_DIR="${TOOLS_DIR:-$ROOT/.tools}"
+WECHAT_CLI_PACKAGE="${WECHAT_CLI_PACKAGE:-@canghe_ai/wechat-cli}"
 
 usage() {
   cat <<EOF
@@ -30,7 +34,9 @@ Options:
   --with-market-data         Enable external market fetches. Default.
   --deploy                   Deploy generated static files to Cloudflare Pages.
   --create-project           Create Cloudflare Pages project before deploy.
+  --install-wechat-cli       Install wechat-cli locally under .tools/.
   --install-skill            Install bundled Codex skill to ~/.codex/skills.
+  --setup-only               Install/configure tools, then exit before building.
   --no-open                  Do not open the generated HTML locally.
   -h, --help                 Show this help.
 
@@ -74,8 +80,16 @@ while [[ $# -gt 0 ]]; do
       CREATE_PROJECT=1
       shift
       ;;
+    --install-wechat-cli)
+      INSTALL_WECHAT_CLI=1
+      shift
+      ;;
     --install-skill)
       INSTALL_SKILL=1
+      shift
+      ;;
+    --setup-only)
+      SETUP_ONLY=1
       shift
       ;;
     --no-open)
@@ -122,11 +136,54 @@ if [[ ! -f "$ROOT/.env" ]]; then
   cp "$ROOT/.env.example" "$ROOT/.env"
 fi
 
+ensure_wechat_cli() {
+  local requested_bin="${WECHAT_BIN:-wechat-cli}"
+  if command -v "$requested_bin" >/dev/null 2>&1; then
+    WECHAT_BIN="$(command -v "$requested_bin")"
+    export WECHAT_BIN
+    echo "==> found wechat-cli: $WECHAT_BIN"
+    return 0
+  fi
+
+  local local_bin="$TOOLS_DIR/node_modules/.bin/wechat-cli"
+  if [[ -x "$local_bin" ]]; then
+    WECHAT_BIN="$local_bin"
+    export WECHAT_BIN
+    echo "==> found local wechat-cli: $WECHAT_BIN"
+    return 0
+  fi
+
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "npm is required to install wechat-cli. Install Node.js/npm, or set WECHAT_BIN to an existing wechat-cli path." >&2
+    exit 1
+  fi
+
+  echo "==> install wechat-cli locally: $WECHAT_CLI_PACKAGE"
+  mkdir -p "$TOOLS_DIR"
+  npm --prefix "$TOOLS_DIR" install "$WECHAT_CLI_PACKAGE" >/dev/null
+
+  if [[ ! -x "$local_bin" ]]; then
+    echo "wechat-cli install finished, but command was not found at: $local_bin" >&2
+    exit 1
+  fi
+  WECHAT_BIN="$local_bin"
+  export WECHAT_BIN
+}
+
 if [[ "$INSTALL_SKILL" -eq 1 ]]; then
   echo "==> install Codex skill"
   mkdir -p "$HOME/.codex/skills"
   rm -rf "$HOME/.codex/skills/wechat-group-stock-dashboard"
   cp -R "$ROOT/codex-skill/wechat-group-stock-dashboard" "$HOME/.codex/skills/"
+fi
+
+if [[ "$INSTALL_WECHAT_CLI" -eq 1 || -n "$GROUP_NAME" ]]; then
+  ensure_wechat_cli
+fi
+
+if [[ "$SETUP_ONLY" -eq 1 ]]; then
+  echo "==> setup complete"
+  exit 0
 fi
 
 if [[ -z "$CHAT_MD" && -z "$GROUP_NAME" ]]; then
@@ -140,7 +197,7 @@ if [[ -n "$CHAT_MD" && ! -s "$CHAT_MD" ]]; then
 fi
 
 if [[ -n "$GROUP_NAME" ]] && ! command -v "${WECHAT_BIN:-wechat-cli}" >/dev/null 2>&1; then
-  echo "wechat-cli not found, but --group-name was provided. Install/configure wechat-cli or use --chat-md." >&2
+  echo "wechat-cli not found, but --group-name was provided. Use --install-wechat-cli or --chat-md." >&2
   exit 1
 fi
 
@@ -170,6 +227,7 @@ MARKET_DATA_CHANNEL="$MARKET_DATA_CHANNEL" \
 WITH_MARKET_DATA="$WITH_MARKET_DATA" \
 OUT_DIR="$OUT_DIR" \
 PYTHON_BIN="$PYTHON_BIN" \
+WECHAT_BIN="${WECHAT_BIN:-wechat-cli}" \
 "$ROOT/scripts/one_click_deploy.sh" "${args[@]}"
 
 index_html="$OUT_DIR/index.html"
