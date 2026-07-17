@@ -35,15 +35,17 @@ SLEEP_SECONDS=600
 DO_DEPLOY=0
 FORCE=0
 DRY_RUN=0
+WITH_MARKET_DATA="${WITH_MARKET_DATA:-0}"
 
 usage() {
   cat <<EOF
-Usage: $0 [--deploy] [--force] [--dry-run] [--days N] [--start-date YYYY-MM-DD] [--end-date YYYY-MM-DD] [--sleep-seconds N]
+Usage: $0 [--deploy] [--with-market-data] [--force] [--dry-run] [--days N] [--start-date YYYY-MM-DD] [--end-date YYYY-MM-DD] [--sleep-seconds N]
 
 Defaults:
   --days 15
   --end-date today
   --sleep-seconds 600
+  --no-market-data (default)
 
 The script runs one date at a time from old to new. Complete date folders are
 skipped unless --force is provided.
@@ -54,6 +56,8 @@ START_DATE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --deploy) DO_DEPLOY=1; shift ;;
+    --with-market-data) WITH_MARKET_DATA=1; shift ;;
+    --no-market-data) WITH_MARKET_DATA=0; shift ;;
     --force) FORCE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --days) DAYS="$2"; shift 2 ;;
@@ -100,11 +104,17 @@ PY
 is_complete_date() {
   local day="$1"
   local dir="$OUT_DIR/$day"
-  [[ -s "$dir/chat.md" ]] &&
-    [[ -s "$dir/stock_mentions.json" ]] &&
+  if [[ ! -s "$dir/chat.md" ]] ||
+    [[ ! -s "$dir/stock_mentions.json" ]] ||
+    [[ ! -s "$dir/index.html" ]]; then
+    return 1
+  fi
+  if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
     [[ -s "$dir/google_finance_snapshot.json" ]] &&
-    [[ -s "$dir/stock_trends.json" ]] &&
-    [[ -s "$dir/index.html" ]]
+      [[ -s "$dir/stock_trends.json" ]]
+    return
+  fi
+  return 0
 }
 
 should_run_date() {
@@ -128,8 +138,10 @@ write_legacy_redirects() {
   {
     printf "/stock_mentions.json /%s/stock_mentions.json 302\n" "$day"
     printf "/stock_mentions.md /%s/stock_mentions.md 302\n" "$day"
-    printf "/google_finance_snapshot.json /%s/google_finance_snapshot.json 302\n" "$day"
-    printf "/stock_trends.json /%s/stock_trends.json 302\n" "$day"
+    if [[ -s "$OUT_DIR/$day/google_finance_snapshot.json" && -s "$OUT_DIR/$day/stock_trends.json" ]]; then
+      printf "/google_finance_snapshot.json /%s/google_finance_snapshot.json 302\n" "$day"
+      printf "/stock_trends.json /%s/stock_trends.json 302\n" "$day"
+    fi
   } > "$OUT_DIR/_redirects"
 }
 
@@ -138,13 +150,22 @@ refresh_current_entry() {
   for ((idx = ${#DATES[@]} - 1; idx >= 0; idx--)); do
     day="${DATES[$idx]}"
     if is_complete_date "$day"; then
-      "$PYTHON_BIN" "$ROOT/build_stock_mentions.py" "$OUT_DIR/$day/chat.md" \
-        --html "$OUT_DIR/$day/index.html" \
-        --json "$OUT_DIR/$day/stock_mentions.json" \
-        --markdown "$OUT_DIR/$day/stock_mentions.md" \
-        --google-finance "$OUT_DIR/$day/google_finance_snapshot.json" \
-        --page-history "$OUT_DIR/page_history.json" \
-        --stock-trends "$OUT_DIR/$day/stock_trends.json"
+      final_args=(
+        "$ROOT/build_stock_mentions.py" "$OUT_DIR/$day/chat.md"
+        --html "$OUT_DIR/$day/index.html"
+        --json "$OUT_DIR/$day/stock_mentions.json"
+        --markdown "$OUT_DIR/$day/stock_mentions.md"
+        --page-history "$OUT_DIR/page_history.json"
+      )
+      if [[ -s "$OUT_DIR/$day/google_finance_snapshot.json" && -s "$OUT_DIR/$day/stock_trends.json" ]]; then
+        final_args+=(--google-finance "$OUT_DIR/$day/google_finance_snapshot.json" --stock-trends "$OUT_DIR/$day/stock_trends.json")
+        if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
+          final_args+=(--speaker-dashboard-href "speakers.html")
+        fi
+      else
+        final_args+=(--no-google-finance)
+      fi
+      "$PYTHON_BIN" "${final_args[@]}"
       cp "$OUT_DIR/$day/index.html" "$OUT_DIR/stock_mentions.html"
       cp "$OUT_DIR/$day/index.html" "$OUT_DIR/index.html"
       cp "$OUT_DIR/$day/index.html" "$OUT_DIR/${day}.html"
@@ -158,6 +179,10 @@ refresh_current_entry() {
 }
 
 refresh_speaker_dashboard() {
+  if [[ "$WITH_MARKET_DATA" -ne 1 ]]; then
+    echo "==> skip speaker dashboard (pass --with-market-data to enable)"
+    return 0
+  fi
   "$PYTHON_BIN" "$ROOT/build_speaker_stock_dashboard.py" \
     --input-dir "$OUT_DIR" \
     --output "$OUT_DIR/speakers.html" \
@@ -170,6 +195,7 @@ echo "==> backfill range: $START_DATE -> $END_DATE (${#DATES[@]} days)"
 echo "==> sleep between days: ${SLEEP_SECONDS}s"
 echo "==> deploy at end: $DO_DEPLOY"
 echo "==> force refresh: $FORCE"
+echo "==> with market data: $WITH_MARKET_DATA"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   for day in "${DATES[@]}"; do
@@ -191,7 +217,7 @@ for idx in "${!DATES[@]}"; do
   else
     echo "==> run date: $day"
     ran_date=1
-    if RUN_DATE="$day" RUN_VERSION="${RUN_VERSION:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}" "$DAILY_SCRIPT"; then
+    if RUN_DATE="$day" WITH_MARKET_DATA="$WITH_MARKET_DATA" RUN_VERSION="${RUN_VERSION:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}" "$DAILY_SCRIPT"; then
       echo "==> done date: $day"
     else
       echo "!! failed date: $day" >&2

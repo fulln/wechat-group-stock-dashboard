@@ -652,7 +652,7 @@ mark.low {{ background: #ffe7ba; box-shadow: inset 0 -1px 0 var(--amber); }}
   <section class="card history-float open" id="historySection" hidden>
     <button class="history-toggle" id="historyToggle" type="button">历史记录</button>
     <div class="history-panel">
-      <a class="history-extra" id="speakerHistoryLink" href="speakers.html">人物股票图谱</a>
+      <a class="history-extra" id="speakerHistoryLink" href="#" hidden>人物股票图谱</a>
       <div class="mini">最近 10 个页面</div>
       <div id="pageHistory" class="history-list"></div>
     </div>
@@ -816,9 +816,13 @@ S.sectors.forEach(sec => {{
 const gf = S.google_finance;
 
 document.getElementById('stockMetric').innerHTML = `${{S.stocks.length}} <small>标的</small>`;
-document.getElementById('stockMini').textContent = `${{S.stocks.reduce((n, s) => n + s.count, 0)}} 次提及 · Google Finance 选择联动`;
+document.getElementById('stockMini').textContent = `${{S.stocks.reduce((n, s) => n + s.count, 0)}} 次提及${{S.google_finance ? ' · Google Finance 选择联动' : ''}}`;
 
-document.getElementById('speakerHistoryLink').href = normalizeHistoryHref('speakers.html');
+const speakerHistoryLink = document.getElementById('speakerHistoryLink');
+if (S.speaker_dashboard_href) {{
+  speakerHistoryLink.href = normalizeHistoryHref(S.speaker_dashboard_href);
+  speakerHistoryLink.hidden = false;
+}}
 function renderPageHistory(pageHistory) {{
   if (!pageHistory.length) return;
   const section = document.getElementById('historySection');
@@ -1220,6 +1224,7 @@ def main() -> None:
     parser.add_argument("--no-google-finance", action="store_true", help="不要读取 Google Finance 快照，用于每日任务的第一阶段标的识别")
     parser.add_argument("--page-history", type=Path, help="页面记录 JSON，最多展示最近 10 个页面")
     parser.add_argument("--stock-trends", type=Path, help="股票分钟线 JSON，用于分时折线和发言标记")
+    parser.add_argument("--speaker-dashboard-href", default="", help="人物股票图谱入口，例如 speakers.html")
     args = parser.parse_args()
 
     chat_name, _header_count, messages = parse_export(args.input)
@@ -1238,6 +1243,8 @@ def main() -> None:
         stock_trends = load_stock_trends(args.stock_trends)
         if stock_trends:
             stats["stock_trends"] = stock_trends
+    if args.speaker_dashboard_href:
+        stats["speaker_dashboard_href"] = args.speaker_dashboard_href
 
     html_out = args.html or args.input.with_name("stock_mentions.html")
     json_out = args.json or args.input.with_name("stock_mentions.json")

@@ -48,13 +48,19 @@ python3 build_stock_mentions.py examples/sample_chat.md \
 
 Open `exports/sample/index.html` in a browser.
 
-Or use the one-command wrapper:
+Or use the one-command wrapper. It does not fetch Google Finance by default:
 
 ```bash
-CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh --no-market-data
+CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh
 ```
 
 ## Add Google Finance And Intraday Charts
+
+```bash
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --with-market-data
+```
+
+Or run the individual steps:
 
 ```bash
 python3 fetch_google_finance_snapshot.py \
@@ -105,7 +111,8 @@ WECHAT_GROUP_NAME="My Group" ./scripts/daily_group_stock_dashboard.sh
 ```
 
 The script writes to `exports/group_stock_dashboard/YYYY-MM-DD/`, updates
-`page_history.json`, refreshes `index.html`, and builds `speakers.html`.
+`page_history.json`, and refreshes `index.html`. Add `--with-market-data` to
+also fetch Google Finance, intraday lines, and build `speakers.html`.
 
 To display exported sender `me` as another name:
 
@@ -131,12 +138,20 @@ CHAT_MD=/path/to/chat.md \
 ./scripts/one_click_deploy.sh --deploy --create-project
 ```
 
+Add `--with-market-data` when you want Google Finance and intraday chart data:
+
+```bash
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --with-market-data --deploy
+```
+
 Backfill gently:
 
 ```bash
 WECHAT_GROUP_NAME="My Group" \
 ./scripts/backfill_group_stock_dashboard.sh --days 15 --sleep-seconds 600 --deploy
 ```
+
+Add `--with-market-data` only when you also want Google Finance and intraday snapshots for each day.
 
 ## Configure Stocks
 

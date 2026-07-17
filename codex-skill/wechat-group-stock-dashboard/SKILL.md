@@ -21,10 +21,10 @@ Use this when the user has a markdown chat export:
 CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
 ```
 
-For a quick offline demo:
+Market data is optional and off by default. Use it only when the user asks for Google Finance, intraday charts, speaker charts, or market-data-enriched output:
 
 ```bash
-CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh --no-market-data
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --with-market-data
 ```
 
 ## Export From WeChat
@@ -57,6 +57,8 @@ CHAT_MD=/path/to/chat.md \
 ./scripts/one_click_deploy.sh --deploy --create-project
 ```
 
+Add `--with-market-data` to deployment commands only when requested.
+
 If Wrangler is not logged in, tell the user to run `wrangler login` or set `CLOUDFLARE_API_TOKEN`.
 
 ## Backfill
@@ -67,7 +69,7 @@ For historical daily pages:
 WECHAT_GROUP_NAME="Group Name" ./scripts/backfill_group_stock_dashboard.sh --days 15 --deploy
 ```
 
-Use `--dry-run` before long backfills.
+Use `--dry-run` before long backfills. Add `--with-market-data` only when the user wants market snapshots for each day.
 
 ## Verify
 
@@ -75,7 +77,7 @@ After changes, run:
 
 ```bash
 python3 -m py_compile chat_export.py build_stock_mentions.py fetch_google_finance_snapshot.py fetch_stock_trends.py update_page_history.py build_speaker_stock_dashboard.py
-CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh --no-market-data
+CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh
 ```
 
 Check that `exports/group_stock_dashboard/index.html` exists.

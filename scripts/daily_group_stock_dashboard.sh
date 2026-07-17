@@ -2,7 +2,7 @@
 # Daily pipeline:
 #   1. export today's WeChat group messages
 #   2. detect mentioned stocks
-#   3. fetch Google Finance snapshots
+#   3. optionally fetch Google Finance and intraday market snapshots
 #   4. rebuild the static dashboard
 #   5. optionally deploy to Cloudflare Pages
 
@@ -36,6 +36,7 @@ if [[ -z "${PYTHON_BIN:-}" ]]; then
 fi
 WECHAT_BIN="${WECHAT_BIN:-wechat-cli}"
 WRANGLER_BIN="${WRANGLER_BIN:-$(command -v wrangler || true)}"
+WITH_MARKET_DATA="${WITH_MARKET_DATA:-0}"
 
 DATED_DIR="$OUT_DIR/$RUN_DATE"
 mkdir -p "$DATED_DIR"
@@ -61,14 +62,17 @@ for arg in "$@"; do
   case "$arg" in
     --deploy) DO_DEPLOY=1 ;;
     --create-project) CREATE_PROJECT=1 ;;
+    --with-market-data) WITH_MARKET_DATA=1 ;;
+    --no-market-data) WITH_MARKET_DATA=0 ;;
     --help|-h)
       cat <<EOF
-Usage: $0 [--deploy] [--create-project]
+Usage: $0 [--with-market-data] [--deploy] [--create-project] [--no-market-data]
 
 Environment:
   WECHAT_GROUP_NAME        required group name for wechat-cli export
   OUT_DIR                  default: ./exports/group_stock_dashboard
   RUN_DATE                 default: today, YYYY-MM-DD
+  WITH_MARKET_DATA         default: 0; set 1 to fetch Google Finance and intraday data
   CHAT_STOCK_SELF_NAME     optional display name for exported sender "me"
   CF_PAGES_PROJECT_NAME    default: group-stock-dashboard
   CF_PAGES_BRANCH          default: main
@@ -101,11 +105,15 @@ echo "==> build stock list without stale Google Finance data"
   --markdown "$STOCK_MD" \
   --no-google-finance
 
-echo "==> fetch Google Finance snapshot"
-"$PYTHON_BIN" "$ROOT/fetch_google_finance_snapshot.py" "$STOCK_JSON" --output "$GF_JSON"
+if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
+  echo "==> fetch Google Finance snapshot"
+  "$PYTHON_BIN" "$ROOT/fetch_google_finance_snapshot.py" "$STOCK_JSON" --output "$GF_JSON"
 
-echo "==> fetch stock intraday trends"
-"$PYTHON_BIN" "$ROOT/fetch_stock_trends.py" "$STOCK_JSON" --output "$TRENDS_JSON"
+  echo "==> fetch stock intraday trends"
+  "$PYTHON_BIN" "$ROOT/fetch_stock_trends.py" "$STOCK_JSON" --output "$TRENDS_JSON"
+else
+  echo "==> skip Google Finance and intraday data (pass --with-market-data to enable)"
+fi
 
 echo "==> update page history"
 "$PYTHON_BIN" "$ROOT/update_page_history.py" \
@@ -117,27 +125,38 @@ echo "==> update page history"
   --version "$RUN_VERSION"
 
 echo "==> rebuild final dashboard"
-"$PYTHON_BIN" "$ROOT/build_stock_mentions.py" "$CHAT_MD" \
-  --html "$STOCK_HTML" \
-  --json "$STOCK_JSON" \
-  --markdown "$STOCK_MD" \
-  --google-finance "$GF_JSON" \
-  --page-history "$HISTORY_JSON" \
-  --stock-trends "$TRENDS_JSON"
+final_args=(
+  "$ROOT/build_stock_mentions.py" "$CHAT_MD"
+  --html "$STOCK_HTML"
+  --json "$STOCK_JSON"
+  --markdown "$STOCK_MD"
+  --page-history "$HISTORY_JSON"
+)
+if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
+  final_args+=(--google-finance "$GF_JSON" --stock-trends "$TRENDS_JSON")
+  final_args+=(--speaker-dashboard-href "speakers.html")
+else
+  final_args+=(--no-google-finance)
+fi
+"$PYTHON_BIN" "${final_args[@]}"
 cp "$STOCK_HTML" "$CURRENT_HTML"
 cp "$STOCK_HTML" "$CURRENT_INDEX"
 cp "$STOCK_HTML" "$DATED_HTML"
-"$PYTHON_BIN" "$ROOT/build_speaker_stock_dashboard.py" \
-  --input-dir "$OUT_DIR" \
-  --output "$SPEAKERS_HTML" \
-  --json "$SPEAKERS_JSON" \
-  --daily-k "$SPEAKER_DAILY_K" \
-  --days 15
+if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
+  "$PYTHON_BIN" "$ROOT/build_speaker_stock_dashboard.py" \
+    --input-dir "$OUT_DIR" \
+    --output "$SPEAKERS_HTML" \
+    --json "$SPEAKERS_JSON" \
+    --daily-k "$SPEAKER_DAILY_K" \
+    --days 15
+fi
 {
   printf "/stock_mentions.json /%s/stock_mentions.json 302\n" "$RUN_DATE"
   printf "/stock_mentions.md /%s/stock_mentions.md 302\n" "$RUN_DATE"
-  printf "/google_finance_snapshot.json /%s/google_finance_snapshot.json 302\n" "$RUN_DATE"
-  printf "/stock_trends.json /%s/stock_trends.json 302\n" "$RUN_DATE"
+  if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
+    printf "/google_finance_snapshot.json /%s/google_finance_snapshot.json 302\n" "$RUN_DATE"
+    printf "/stock_trends.json /%s/stock_trends.json 302\n" "$RUN_DATE"
+  fi
 } > "$REDIRECTS_FILE"
 
 echo "==> local output"
@@ -145,7 +164,9 @@ echo "    $STOCK_HTML"
 echo "    $CURRENT_HTML"
 echo "    $CURRENT_INDEX"
 echo "    $DATED_HTML"
-echo "    $SPEAKERS_HTML"
+if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
+  echo "    $SPEAKERS_HTML"
+fi
 echo "    $REDIRECTS_FILE"
 
 if [[ "$DO_DEPLOY" -eq 0 ]]; then

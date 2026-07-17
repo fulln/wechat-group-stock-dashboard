@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-command local build, with optional Cloudflare Pages deployment.
+# One-command local build, with optional market data and Cloudflare Pages deployment.
 
 set -euo pipefail
 
@@ -33,11 +33,11 @@ WRANGLER_BIN="${WRANGLER_BIN:-$(command -v wrangler || true)}"
 
 DO_DEPLOY=0
 CREATE_PROJECT=0
-SKIP_MARKET_DATA=0
+WITH_MARKET_DATA="${WITH_MARKET_DATA:-0}"
 
 usage() {
   cat <<EOF
-Usage: $0 [--deploy] [--create-project] [--no-market-data]
+Usage: $0 [--with-market-data] [--deploy] [--create-project] [--no-market-data]
 
 Input options:
   CHAT_MD=/path/to/chat.md       Use an existing markdown export.
@@ -46,12 +46,14 @@ Input options:
 Environment:
   OUT_DIR                        default: ./exports/group_stock_dashboard
   RUN_DATE                       default: first date in CHAT_MD, or today
+  WITH_MARKET_DATA               default: 0; set 1 to fetch Google Finance and intraday data
   CHAT_STOCK_SELF_NAME           optional display name for exported sender "me"
   CF_PAGES_PROJECT_NAME          default: group-stock-dashboard
   CF_PAGES_BRANCH                default: main
 
 Examples:
-  CHAT_MD=examples/sample_chat.md $0 --no-market-data
+  CHAT_MD=examples/sample_chat.md $0
+  CHAT_MD=examples/sample_chat.md $0 --with-market-data
   WECHAT_GROUP_NAME="My Group" $0
   CHAT_MD=exports/raw/2026-07-17.md $0 --deploy --create-project
 EOF
@@ -61,7 +63,8 @@ for arg in "$@"; do
   case "$arg" in
     --deploy) DO_DEPLOY=1 ;;
     --create-project) CREATE_PROJECT=1 ;;
-    --no-market-data) SKIP_MARKET_DATA=1 ;;
+    --with-market-data) WITH_MARKET_DATA=1 ;;
+    --no-market-data) WITH_MARKET_DATA=0 ;;
     --help|-h) usage; exit 0 ;;
     *) echo "Unknown argument: $arg" >&2; usage >&2; exit 2 ;;
   esac
@@ -125,7 +128,7 @@ echo "==> build stock list"
   --markdown "$STOCK_MD" \
   --no-google-finance
 
-if [[ "$SKIP_MARKET_DATA" -eq 0 ]]; then
+if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
   echo "==> fetch Google Finance snapshot"
   "$PYTHON_BIN" "$ROOT/fetch_google_finance_snapshot.py" "$STOCK_JSON" --output "$GF_JSON"
 
@@ -150,8 +153,9 @@ final_args=(
   --markdown "$STOCK_MD"
   --page-history "$HISTORY_JSON"
 )
-if [[ "$SKIP_MARKET_DATA" -eq 0 ]]; then
+if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
   final_args+=(--google-finance "$GF_JSON" --stock-trends "$TRENDS_JSON")
+  final_args+=(--speaker-dashboard-href "speakers.html")
 else
   final_args+=(--no-google-finance)
 fi
@@ -163,13 +167,13 @@ cp "$STOCK_HTML" "$OUT_DIR/${RUN_DATE}.html"
 {
   printf "/stock_mentions.json /%s/stock_mentions.json 302\n" "$RUN_DATE"
   printf "/stock_mentions.md /%s/stock_mentions.md 302\n" "$RUN_DATE"
-  if [[ "$SKIP_MARKET_DATA" -eq 0 ]]; then
+  if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
     printf "/google_finance_snapshot.json /%s/google_finance_snapshot.json 302\n" "$RUN_DATE"
     printf "/stock_trends.json /%s/stock_trends.json 302\n" "$RUN_DATE"
   fi
 } > "$OUT_DIR/_redirects"
 
-if [[ "$SKIP_MARKET_DATA" -eq 0 ]]; then
+if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
   echo "==> build speaker dashboard"
   "$PYTHON_BIN" "$ROOT/build_speaker_stock_dashboard.py" \
     --input-dir "$OUT_DIR" \
@@ -178,7 +182,7 @@ if [[ "$SKIP_MARKET_DATA" -eq 0 ]]; then
     --daily-k "$SPEAKER_DAILY_K" \
     --days 15
 else
-  echo "==> skip market data and speaker dashboard"
+  echo "==> skip market data and speaker dashboard (pass --with-market-data to enable)"
 fi
 
 echo "==> output: $OUT_DIR/index.html"
