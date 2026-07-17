@@ -159,6 +159,17 @@ WECHAT_GROUP_NAME="你的群名" \
 这是一个小而偏手工的词典。开源版默认不会覆盖全部 A 股、港股、美股简称。
 如果你要用于自己的群，建议先补充常见简称。
 
+## 自定义页面
+
+最终产物仍然是单个可直接打开的静态 HTML，但源码里的页面已经拆成模板：
+
+- `templates/stock_mentions.html`
+- `templates/stock_mentions.js`
+- `templates/speaker_dashboard.html`
+- `templates/speaker_dashboard.js`
+
+Python 只负责注入页面元信息和 JSON 数据。改布局、样式、浏览器交互时，优先改这些模板文件。
+
 ## Codex Skill
 
 仓库里带了一个可选 Skill：

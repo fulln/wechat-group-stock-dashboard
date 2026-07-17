@@ -184,6 +184,20 @@ The stock dictionary and sector rules currently live in
 The included dictionary is intentionally small and opinionated. Extend it for
 your own market universe before relying on the output.
 
+## Customize The Pages
+
+The generated files remain standalone static HTML, but the source UI is split
+into templates:
+
+- `templates/stock_mentions.html`
+- `templates/stock_mentions.js`
+- `templates/speaker_dashboard.html`
+- `templates/speaker_dashboard.js`
+
+Python scripts only inject escaped page metadata and JSON data into these
+templates. Edit the template files when changing layout, CSS, or browser-side
+interactions.
+
 ## Privacy
 
 Never commit `exports/`, logs, `.env`, or raw chat exports. They are ignored by

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>人物股票图谱 · 群聊股票看板</title>
+<style>
+:root { --bg:#f6f7f2; --panel:#fff; --ink:#202225; --muted:#657071; --line:#dfe4dc; --blue:#285f9f; --red:#b8443f; --green:#15835b; --amber:#b7791f; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; }
+.shell { max-width:1380px; margin:0 auto; padding:20px; }
+.topbar { display:flex; justify-content:space-between; gap:16px; align-items:end; margin-bottom:14px; }
+.topbar h1 { margin:0 0 5px; font-size:26px; }
+.sub { color:var(--muted); font-size:13px; }
+.home { color:var(--blue); text-decoration:none; border:1px solid var(--line); background:#fff; border-radius:8px; padding:8px 10px; }
+.layout { display:grid; grid-template-columns:300px minmax(0,1fr); gap:14px; min-height:calc(100vh - 100px); }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+.people { padding:14px; overflow:auto; max-height:calc(100vh - 106px); }
+.people h2 { margin:0 0 8px; font-size:15px; }
+.person-btn { width:100%; border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:8px; padding:10px; margin:6px 0; text-align:left; cursor:pointer; }
+.person-btn:hover { background:#f8fbf7; }
+.person-btn.active { border-color:var(--blue); background:#edf5fb; box-shadow:inset 3px 0 0 var(--blue); }
+.person-name { display:flex; justify-content:space-between; gap:8px; font-weight:750; }
+.person-meta { color:var(--muted); font-size:12px; margin-top:2px; }
+.content { min-width:0; display:grid; grid-template-rows:auto auto 1fr; gap:14px; }
+.summary { padding:16px; display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; }
+.summary h2 { margin:0; font-size:22px; }
+.metrics { display:flex; flex-wrap:wrap; gap:8px; justify-content:end; }
+.metrics span, .chip { border:1px solid var(--line); border-radius:999px; padding:5px 9px; background:#fbfcf8; color:var(--muted); font-size:12px; }
+.stock-strip { padding:12px; display:flex; gap:8px; overflow-x:auto; }
+.stock-btn { flex:0 0 auto; min-width:150px; max-width:210px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); padding:9px; text-align:left; cursor:pointer; }
+.stock-btn.active { border-color:var(--blue); background:#edf5fb; }
+.stock-btn b, .stock-btn small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stock-btn small { color:var(--muted); }
+.detail { padding:16px; min-width:0; }
+.detail-head { display:flex; justify-content:space-between; gap:12px; align-items:start; margin-bottom:12px; }
+.detail h3 { margin:0 0 4px; font-size:20px; }
+.chart-wrap { position:relative; height:360px; border:1px solid var(--line); border-radius:8px; background:#fbfcf8; overflow:hidden; }
+canvas { width:100%; height:100%; display:block; }
+.hover-box { margin-top:10px; min-height:48px; border-left:3px solid var(--blue); background:#f5f8fb; padding:9px 11px; color:var(--muted); }
+.hover-box b { color:var(--ink); }
+.hover-box .quote { margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--ink); }
+.messages { margin-top:12px; display:grid; gap:8px; max-height:260px; overflow:auto; }
+.msg { display:grid; grid-template-columns:92px 56px 1fr; gap:8px; border:1px solid var(--line); border-radius:8px; padding:9px; background:#fff; }
+.msg time { color:var(--blue); font-weight:700; }
+.msg .signal { color:var(--muted); }
+.empty { color:var(--muted); padding:20px; }
+@media (max-width:900px) { .layout { grid-template-columns:1fr; } .people { max-height:none; } .summary { grid-template-columns:1fr; } .metrics { justify-content:start; } .chart-wrap { height:300px; } }
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="topbar">
+    <div>
+      <h1>人物股票图谱</h1>
+      <div class="sub">按人名聚合群里提到过的股票消息，并叠加到日 K。区间：__DATE_RANGE__ · 非投资建议</div>
+    </div>
+    <a class="home" href="./">返回首页</a>
+  </div>
+  <section class="layout">
+    <aside class="panel people">
+      <h2>发言人</h2>
+      <div id="peopleList"></div>
+    </aside>
+    <section class="content">
+      <div class="panel summary">
+        <div>
+          <h2 id="speakerName"></h2>
+          <div class="sub" id="speakerSub"></div>
+        </div>
+        <div class="metrics" id="speakerMetrics"></div>
+      </div>
+      <div class="panel stock-strip" id="stockStrip"></div>
+      <article class="panel detail">
+        <div class="detail-head">
+          <div>
+            <h3 id="stockTitle"></h3>
+            <div class="sub" id="stockMeta"></div>
+          </div>
+          <span class="chip" id="chartStatus"></span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart"></canvas></div>
+        <div class="hover-box" id="hoverBox">移动鼠标查看日 K；图上的圆点是该人提到该股票的日期。</div>
+        <div class="messages" id="messageList"></div>
+      </article>
+    </section>
+  </section>
+</main>
+<script>
+__SCRIPT__
+</script>
+</body>
+</html>

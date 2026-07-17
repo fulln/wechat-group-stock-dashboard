@@ -83,3 +83,11 @@ CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh
 ```
 
 Check that `exports/group_stock_dashboard/index.html` exists.
+
+## Template Notes
+
+Page UI source lives in `templates/stock_mentions.html`,
+`templates/stock_mentions.js`, `templates/speaker_dashboard.html`, and
+`templates/speaker_dashboard.js`. Keep generated outputs standalone, but make UI
+layout/style/interaction edits in those template files instead of embedding
+large HTML or JS blocks in Python.
