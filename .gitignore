@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+exports/
+logs/
+data/
+vendor/
+.wrangler/
+node_modules/

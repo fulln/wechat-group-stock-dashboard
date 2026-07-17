@@ -1,0 +1,13 @@
+[project]
+name = "wechat-group-stock-dashboard"
+version = "0.1.0"
+description = "Static stock mention dashboards from WeChat-style group chat markdown exports."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "fulln" }]
+dependencies = []
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
