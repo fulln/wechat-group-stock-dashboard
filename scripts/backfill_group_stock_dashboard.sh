@@ -36,6 +36,7 @@ DO_DEPLOY=0
 FORCE=0
 DRY_RUN=0
 WITH_MARKET_DATA="${WITH_MARKET_DATA:-1}"
+MARKET_DATA_CHANNEL="${MARKET_DATA_CHANNEL:-auto}"
 
 usage() {
   cat <<EOF
@@ -46,6 +47,7 @@ Defaults:
   --end-date today
   --sleep-seconds 600
   --with-market-data (default; pass --no-market-data for lightweight/offline runs)
+  MARKET_DATA_CHANNEL=auto|google|sina
 
 The script runs one date at a time from old to new. Complete date folders are
 skipped unless --force is provided.
@@ -196,6 +198,7 @@ echo "==> sleep between days: ${SLEEP_SECONDS}s"
 echo "==> deploy at end: $DO_DEPLOY"
 echo "==> force refresh: $FORCE"
 echo "==> with market data: $WITH_MARKET_DATA"
+echo "==> market data channel: $MARKET_DATA_CHANNEL"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   for day in "${DATES[@]}"; do
@@ -217,7 +220,7 @@ for idx in "${!DATES[@]}"; do
   else
     echo "==> run date: $day"
     ran_date=1
-    if RUN_DATE="$day" WITH_MARKET_DATA="$WITH_MARKET_DATA" RUN_VERSION="${RUN_VERSION:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}" "$DAILY_SCRIPT"; then
+    if RUN_DATE="$day" WITH_MARKET_DATA="$WITH_MARKET_DATA" MARKET_DATA_CHANNEL="$MARKET_DATA_CHANNEL" RUN_VERSION="${RUN_VERSION:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}" "$DAILY_SCRIPT"; then
       echo "==> done date: $day"
     else
       echo "!! failed date: $day" >&2

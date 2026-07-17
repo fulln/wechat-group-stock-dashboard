@@ -15,6 +15,8 @@ from urllib.request import Request, urlopen
 
 
 GOOGLE_FINANCE_BASE = "https://www.google.com/finance/beta"
+SINA_QUOTE_URL = "http://hq.sinajs.cn/list="
+SINA_STOCK_BASE = "https://finance.sina.com.cn/realstock/company"
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
@@ -79,6 +81,31 @@ def fetch_quote(symbol: str, timeout: int) -> tuple[str, str]:
     raise last_error or RuntimeError(f"failed to fetch {symbol}")
 
 
+def market_symbol(candidate: dict) -> str | None:
+    market = candidate.get("market")
+    code = candidate.get("code")
+    if market == "SH":
+        return f"sh{code}"
+    if market == "SZ":
+        return f"sz{code}"
+    return None
+
+
+def fetch_sina_quote(symbol: str, timeout: int) -> tuple[str, str]:
+    req = Request(
+        f"{SINA_QUOTE_URL}{symbol}",
+        headers={
+            "User-Agent": USER_AGENT,
+            "Referer": "https://finance.sina.com.cn/",
+            "Accept": "*/*",
+            "Connection": "close",
+        },
+    )
+    with urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode("gbk", "ignore")
+    return f"{SINA_STOCK_BASE}/{symbol}/nc.shtml", raw
+
+
 def pct_value(text: str | None) -> float | None:
     if not text:
         return None
@@ -108,6 +135,23 @@ def cn_number(text: str | None) -> float | None:
         value = value.replace("万", "")
     match = re.search(r"-?\d+(?:\.\d+)?", value)
     return float(match.group(0)) * multiplier if match else None
+
+
+def to_float(value: str | None) -> float | None:
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def money(value: float | None) -> str:
+    return f"¥{value:.2f}" if value is not None else ""
+
+
+def pct_text(value: float | None) -> str:
+    if value is None:
+        return ""
+    return f"{value:+.2f}%"
 
 
 def first_after(lines: list[str], idx: int, pattern: str, limit: int = 80) -> str:
@@ -204,6 +248,7 @@ def market_label(score: int) -> str:
 
 def build_market_sentiment(item: dict) -> tuple[dict, str]:
     stats = item.get("stats") or {}
+    source_label = item.get("sourceLabel") or "Google Finance"
     change = item.get("changePercentValue")
     score = 0
     factors: list[str] = []
@@ -261,12 +306,12 @@ def build_market_sentiment(item: dict) -> tuple[dict, str]:
     if ups or downs:
         if downs >= ups + 2:
             score -= 1
-            factors.append(f"Google Finance 相关股票下跌更多（涨 {ups} / 跌 {downs}），同类情绪偏弱")
+            factors.append(f"{source_label} 相关股票下跌更多（涨 {ups} / 跌 {downs}），同类情绪偏弱")
         elif ups >= downs + 2:
             score += 1
-            factors.append(f"Google Finance 相关股票上涨更多（涨 {ups} / 跌 {downs}），同类情绪偏强")
+            factors.append(f"{source_label} 相关股票上涨更多（涨 {ups} / 跌 {downs}），同类情绪偏强")
         else:
-            factors.append(f"Google Finance 相关股票涨跌接近（涨 {ups} / 跌 {downs}），同类情绪分歧")
+            factors.append(f"{source_label} 相关股票涨跌接近（涨 {ups} / 跌 {downs}），同类情绪分歧")
 
     label = market_label(score)
     if score <= -3:
@@ -288,7 +333,7 @@ def build_market_sentiment(item: dict) -> tuple[dict, str]:
         change_word = f"当日下跌 {item.get('changePercent')}"
     else:
         change_word = f"当日持平 {item.get('changePercent')}"
-    takeaway = f"Google Finance 显示{change_word}，综合量能、日内位置和相关股表现为“{label}”。{action}"
+    takeaway = f"{source_label} 显示{change_word}，综合量能、日内位置和相关股表现为“{label}”。{action}"
     sentiment = {
         "score": score,
         "label": label,
@@ -368,6 +413,7 @@ def parse_item(candidate: dict, group_stock: dict, raw: str, source_url: str) ->
     item = {
         **candidate,
         "sourceUrl": source_url,
+        "sourceLabel": "Google Finance",
         "pageTitle": page_title,
         "googleName": google_name,
         "price": price,
@@ -390,11 +436,105 @@ def parse_item(candidate: dict, group_stock: dict, raw: str, source_url: str) ->
     return item
 
 
+def parse_sina_item(candidate: dict, group_stock: dict, raw: str, source_url: str) -> dict:
+    if '="' not in raw:
+        raise ValueError("Sina quote response missing payload")
+    fields = raw.split('="', 1)[1].split('"', 1)[0].split(",")
+    if len(fields) < 32:
+        raise ValueError("Sina quote response has too few fields")
+    name = fields[0] or candidate["displayName"]
+    open_price = to_float(fields[1])
+    pre_close = to_float(fields[2])
+    current = to_float(fields[3])
+    high = to_float(fields[4])
+    low = to_float(fields[5])
+    volume = to_float(fields[8]) if len(fields) > 8 else None
+    amount = to_float(fields[9]) if len(fields) > 9 else None
+    change_value = ((current - pre_close) / pre_close * 100) if current is not None and pre_close else None
+    timestamp = " ".join(part for part in [fields[30] if len(fields) > 30 else "", fields[31] if len(fields) > 31 else ""] if part).strip()
+    stats = {
+        "昨收": money(pre_close),
+        "开盘价": money(open_price),
+        "最高价": money(high),
+        "最低价": money(low),
+    }
+    if volume is not None:
+        stats["成交量"] = f"{volume / 10000:.2f} 万手"
+    if amount is not None:
+        stats["成交额"] = f"{amount / 100000000:.2f} 亿"
+    item = {
+        **candidate,
+        "sourceUrl": source_url,
+        "sourceLabel": "Sina 行情",
+        "pageTitle": f"{name}({candidate['code']}) 股票行情",
+        "googleName": name,
+        "price": money(current),
+        "changePercent": pct_text(change_value),
+        "changeAmountLine": "",
+        "changeDirection": "up" if change_value and change_value > 0 else "down" if change_value and change_value < 0 else "neutral",
+        "changePercentValue": change_value,
+        "timestamp": timestamp,
+        "stats": {k: v for k, v in stats.items() if v},
+        "news": [],
+        "profile": [],
+        "relatedBlock": [],
+        "status": "ok" if current is not None and change_value is not None else "partial",
+        "group": group_stock,
+        "sampledAt": dt.datetime.now(dt.timezone.utc).isoformat(),
+    }
+    sentiment, takeaway = build_market_sentiment(item)
+    item["marketSentiment"] = sentiment
+    item["takeaway"] = takeaway
+    return item
+
+
+def fetch_google_item(candidate: dict, stock: dict, timeout: int) -> dict:
+    source_url, raw = fetch_quote(candidate["symbol"], timeout)
+    return parse_item(candidate, stock, raw, source_url)
+
+
+def fetch_sina_item(candidate: dict, stock: dict, timeout: int) -> dict:
+    symbol = market_symbol(candidate)
+    if not symbol:
+        raise ValueError(f"Sina channel does not support {candidate.get('symbol')}")
+    source_url, raw = fetch_sina_quote(symbol, timeout)
+    return parse_sina_item(candidate, stock, raw, source_url)
+
+
+def fetch_channel_item(candidate: dict, stock: dict, channel: str, timeout: int) -> dict:
+    if channel == "google":
+        return fetch_google_item(candidate, stock, timeout)
+    if channel == "sina":
+        return fetch_sina_item(candidate, stock, timeout)
+    errors: list[str] = []
+    try:
+        item = fetch_google_item(candidate, stock, timeout)
+        if item.get("status") == "ok":
+            item["channel"] = "google"
+            return item
+        errors.append(f"google returned {item.get('status')}")
+    except Exception as exc:  # noqa: BLE001 - auto mode should try the next configured source.
+        errors.append(f"google: {exc}")
+    item = fetch_sina_item(candidate, stock, timeout)
+    item["channel"] = "sina"
+    if errors:
+        item["fallbackFrom"] = errors
+    return item
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("stock_json", type=Path, help="build_stock_mentions.py 输出的 stock_mentions.json")
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--timeout", type=int, default=30)
+    parser.add_argument(
+        "--channel",
+        "--quote-channel",
+        dest="channel",
+        choices=("auto", "google", "sina"),
+        default="auto",
+        help="行情快照渠道：auto 先 Google Finance 后新浪兜底；google 仅 Google；sina 仅新浪",
+    )
     args = parser.parse_args()
 
     stats = json.loads(args.stock_json.read_text(encoding="utf-8"))
@@ -402,32 +542,37 @@ def main() -> None:
     for stock in stats.get("stocks", []):
         for candidate in candidates_for(stock):
             try:
-                source_url, raw = fetch_quote(candidate["symbol"], args.timeout)
-                item = parse_item(candidate, stock, raw, source_url)
+                item = fetch_channel_item(candidate, stock, args.channel, args.timeout)
             except Exception as exc:  # noqa: BLE001 - daily job should keep other symbols moving.
                 item = {
                     **candidate,
                     "sourceUrl": f"{GOOGLE_FINANCE_BASE}/quote/{quote(candidate['symbol'], safe='')}",
+                    "sourceLabel": "Google Finance / Sina 行情",
                     "status": "failed",
                     "error": str(exc),
                     "group": stock,
                     "sampledAt": dt.datetime.now(dt.timezone.utc).isoformat(),
                 }
             items.append(item)
-            print(f"[{item['status']}] {candidate['displayName']} {candidate['symbol']} {item.get('price', '')} {item.get('changePercent', '')}", file=sys.stderr)
+            print(
+                f"[{item['status']}] {item.get('sourceLabel', '')} {candidate['displayName']} {candidate['symbol']} "
+                f"{item.get('price', '')} {item.get('changePercent', '')}",
+                file=sys.stderr,
+            )
 
     snapshot = {
-        "source": "Google Finance Beta",
+        "source": "Google Finance Beta + Sina fallback" if args.channel == "auto" else "Google Finance Beta" if args.channel == "google" else "Sina Quote",
+        "channel": args.channel,
         "betaEntryUrl": GOOGLE_FINANCE_BASE,
         "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
-        "note": "Google Finance 页面快照；情绪判断只使用 Google Finance 页面中的价格、成交量、日内位置、相关股票和新闻线索，不使用群内偏多/偏空。非投资建议。",
+        "note": "行情页面快照；auto 渠道优先使用 Google Finance，失败时使用新浪报价兜底。情绪判断只使用外部行情中的价格、成交量、日内位置、相关股票和新闻线索，不使用群内偏多/偏空。非投资建议。",
         "items": items,
     }
     output = args.output or args.stock_json.with_name("google_finance_snapshot.json")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
     ok = sum(1 for item in items if item.get("status") == "ok")
-    print(f"[+] Google Finance snapshot: {ok}/{len(items)} ok -> {output}")
+    print(f"[+] market snapshot ({args.channel}): {ok}/{len(items)} ok -> {output}")
 
 
 if __name__ == "__main__":

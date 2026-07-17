@@ -37,6 +37,7 @@ fi
 WECHAT_BIN="${WECHAT_BIN:-wechat-cli}"
 WRANGLER_BIN="${WRANGLER_BIN:-$(command -v wrangler || true)}"
 WITH_MARKET_DATA="${WITH_MARKET_DATA:-1}"
+MARKET_DATA_CHANNEL="${MARKET_DATA_CHANNEL:-auto}"
 
 DATED_DIR="$OUT_DIR/$RUN_DATE"
 mkdir -p "$DATED_DIR"
@@ -73,6 +74,7 @@ Environment:
   OUT_DIR                  default: ./exports/group_stock_dashboard
   RUN_DATE                 default: today, YYYY-MM-DD
   WITH_MARKET_DATA         default: 1; set 0 or pass --no-market-data to skip market fetches
+  MARKET_DATA_CHANNEL      default: auto; one of auto, google, sina
   CHAT_STOCK_SELF_NAME     optional display name for exported sender "me"
   CF_PAGES_PROJECT_NAME    default: group-stock-dashboard
   CF_PAGES_BRANCH          default: main
@@ -106,13 +108,13 @@ echo "==> build stock list without stale Google Finance data"
   --no-google-finance
 
 if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
-  echo "==> fetch Google Finance snapshot"
-  "$PYTHON_BIN" "$ROOT/fetch_google_finance_snapshot.py" "$STOCK_JSON" --output "$GF_JSON"
+  echo "==> fetch market snapshot ($MARKET_DATA_CHANNEL)"
+  "$PYTHON_BIN" "$ROOT/fetch_google_finance_snapshot.py" "$STOCK_JSON" --output "$GF_JSON" --channel "$MARKET_DATA_CHANNEL"
 
   echo "==> fetch stock intraday trends"
   "$PYTHON_BIN" "$ROOT/fetch_stock_trends.py" "$STOCK_JSON" --output "$TRENDS_JSON"
 else
-  echo "==> skip Google Finance and intraday data (--no-market-data)"
+  echo "==> skip market snapshot and intraday data (--no-market-data)"
 fi
 
 echo "==> update page history"

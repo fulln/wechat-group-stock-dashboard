@@ -48,8 +48,9 @@ python3 build_stock_mentions.py examples/sample_chat.md \
 
 Open `exports/sample/index.html` in a browser.
 
-Or use the one-command wrapper. It fetches Google Finance, intraday lines, and
-speaker-page daily K data by default:
+Or use the one-command wrapper. It fetches market snapshots, intraday lines, and
+speaker-page daily K data by default. Snapshot channel `auto` keeps Google
+Finance as the primary source and falls back to Sina quote when needed:
 
 ```bash
 CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh
@@ -62,12 +63,22 @@ CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --no-market-data
 ```
 
 The speaker page is still generated in this mode, but its daily K data is
-marked as disabled. You can also run the market-data steps individually:
+marked as disabled.
+
+To force a snapshot channel:
+
+```bash
+MARKET_DATA_CHANNEL=google CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
+MARKET_DATA_CHANNEL=sina CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
+```
+
+You can also run the market-data steps individually:
 
 ```bash
 python3 fetch_google_finance_snapshot.py \
   exports/sample/stock_mentions.json \
-  --output exports/sample/google_finance_snapshot.json
+  --output exports/sample/google_finance_snapshot.json \
+  --channel auto
 
 python3 fetch_stock_trends.py \
   exports/sample/stock_mentions.json \
@@ -114,8 +125,9 @@ WECHAT_GROUP_NAME="My Group" ./scripts/daily_group_stock_dashboard.sh
 
 The script writes to `exports/group_stock_dashboard/YYYY-MM-DD/`, updates
 `page_history.json`, refreshes `index.html`, and builds `speakers.html`. It
-fetches Google Finance, intraday lines, and speaker-page daily K data by
-default. Add `--no-market-data` for a lightweight/offline run.
+fetches market snapshots, intraday lines, and speaker-page daily K data by
+default. `MARKET_DATA_CHANNEL=auto` uses Google Finance first and Sina quote as
+fallback. Add `--no-market-data` for a lightweight/offline run.
 
 To display exported sender `me` as another name:
 

@@ -34,6 +34,7 @@ WRANGLER_BIN="${WRANGLER_BIN:-$(command -v wrangler || true)}"
 DO_DEPLOY=0
 CREATE_PROJECT=0
 WITH_MARKET_DATA="${WITH_MARKET_DATA:-1}"
+MARKET_DATA_CHANNEL="${MARKET_DATA_CHANNEL:-auto}"
 
 usage() {
   cat <<EOF
@@ -47,6 +48,7 @@ Environment:
   OUT_DIR                        default: ./exports/group_stock_dashboard
   RUN_DATE                       default: first date in CHAT_MD, or today
   WITH_MARKET_DATA               default: 1; set 0 or pass --no-market-data to skip market fetches
+  MARKET_DATA_CHANNEL            default: auto; one of auto, google, sina
   CHAT_STOCK_SELF_NAME           optional display name for exported sender "me"
   CF_PAGES_PROJECT_NAME          default: group-stock-dashboard
   CF_PAGES_BRANCH                default: main
@@ -129,8 +131,8 @@ echo "==> build stock list"
   --no-google-finance
 
 if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
-  echo "==> fetch Google Finance snapshot"
-  "$PYTHON_BIN" "$ROOT/fetch_google_finance_snapshot.py" "$STOCK_JSON" --output "$GF_JSON"
+  echo "==> fetch market snapshot ($MARKET_DATA_CHANNEL)"
+  "$PYTHON_BIN" "$ROOT/fetch_google_finance_snapshot.py" "$STOCK_JSON" --output "$GF_JSON" --channel "$MARKET_DATA_CHANNEL"
 
   echo "==> fetch intraday trends"
   "$PYTHON_BIN" "$ROOT/fetch_stock_trends.py" "$STOCK_JSON" --output "$TRENDS_JSON"

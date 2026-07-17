@@ -640,7 +640,7 @@ mark.low {{ background: #ffe7ba; box-shadow: inset 0 -1px 0 var(--amber); }}
       <section class="card relation-card" id="gfSection" hidden>
         <div class="gf-head">
           <div>
-            <h2>Google Finance 快照 / 明日线索</h2>
+            <h2>行情快照 / 明日线索</h2>
             <div class="mini" id="gfMeta"></div>
           </div>
           <a class="gf-link" id="gfEntry" href="https://www.google.com/finance/beta" target="_blank" rel="noopener">打开 Google Finance</a>
@@ -814,9 +814,10 @@ S.sectors.forEach(sec => {{
   document.getElementById('sectorList').appendChild(item);
 }});
 const gf = S.google_finance;
+const marketSourceName = gf?.source || 'Google Finance';
 
 document.getElementById('stockMetric').innerHTML = `${{S.stocks.length}} <small>标的</small>`;
-document.getElementById('stockMini').textContent = `${{S.stocks.reduce((n, s) => n + s.count, 0)}} 次提及${{S.google_finance ? ' · Google Finance 选择联动' : ''}}`;
+document.getElementById('stockMini').textContent = `${{S.stocks.reduce((n, s) => n + s.count, 0)}} 次提及${{S.google_finance ? ` · ${{marketSourceName}} 选择联动` : ''}}`;
 
 const speakerHistoryLink = document.getElementById('speakerHistoryLink');
 if (S.speaker_dashboard_href) {{
@@ -853,12 +854,13 @@ if (gf?.items?.length) {{
   section.hidden = false;
   document.getElementById('gfEntry').href = gf.betaEntryUrl || 'https://www.google.com/finance/beta';
   const updated = gf.generatedAt ? new Date(gf.generatedAt).toLocaleString('zh-CN', {{ hour12: false }}) : '未知时间';
-  document.getElementById('gfMeta').textContent = `${{gf.source || 'Google Finance'}} · 采集 ${{gf.items.length}} 个结果 · 更新时间 ${{updated}} · 非投资建议`;
+  document.getElementById('gfMeta').textContent = `${{marketSourceName}} · 采集 ${{gf.items.length}} 个结果 · 更新时间 ${{updated}} · 非投资建议`;
 
   renderGfDetailFn = function renderGfDetail(item) {{
     const group = item.group || {{}};
     const marketSentiment = item.marketSentiment || {{}};
-    const statKeys = ['昨收', '开盘价', '最高价', '最低价', '市值', '成交量', '平均成交量', '52 周最高价', '52 周最低价'];
+    const itemSourceName = item.sourceLabel || marketSourceName;
+    const statKeys = ['昨收', '开盘价', '最高价', '最低价', '市值', '成交量', '成交额', '平均成交量', '52 周最高价', '52 周最低价'];
     const statsHtml = statKeys
       .filter(k => item.stats && item.stats[k])
       .map(k => `<div class="gf-stat"><b>${{esc(k)}}</b>${{esc(item.stats[k])}}</div>`)
@@ -878,11 +880,11 @@ if (gf?.items?.length) {{
             <div class="signal ${{gfSignal(item.changeDirection)}}">${{esc(item.changePercent || '--')}} ${{esc(item.changeAmountLine || '')}}</div>
           </div>
         </div>
-        <div class="meta" style="margin-top:8px">Google Finance 情绪：<span class="signal ${{signalClass(marketSentiment.score || 0)}}">${{esc(marketSentiment.label || '未计算')}} ${{(marketSentiment.score || 0) > 0 ? '+' : ''}}${{esc(marketSentiment.score ?? 0)}}</span></div>
+        <div class="meta" style="margin-top:8px">${{esc(itemSourceName)}} 情绪：<span class="signal ${{signalClass(marketSentiment.score || 0)}}">${{esc(marketSentiment.label || '未计算')}} ${{(marketSentiment.score || 0) > 0 ? '+' : ''}}${{esc(marketSentiment.score ?? 0)}}</span></div>
         <div class="gf-takeaway">${{esc(item.takeaway || '')}}</div>
-        <div class="meta" style="margin-top:8px">聊天来源：${{esc(group.count ?? 0)}} 次提及（不参与本段情绪判断） · <a class="gf-link" href="${{esc(item.sourceUrl)}}" target="_blank" rel="noopener">Google Finance 页面</a></div>
+        <div class="meta" style="margin-top:8px">聊天来源：${{esc(group.count ?? 0)}} 次提及（不参与本段情绪判断） · <a class="gf-link" href="${{esc(item.sourceUrl)}}" target="_blank" rel="noopener">${{esc(itemSourceName)}} 页面</a></div>
         <div class="gf-grid">${{statsHtml}}</div>
-        ${{factorHtml ? `<div class="section-list" style="margin-top:10px"><div class="meta">Google Finance 判断因子</div>${{factorHtml}}</div>` : ''}}
+        ${{factorHtml ? `<div class="section-list" style="margin-top:10px"><div class="meta">${{esc(itemSourceName)}} 判断因子</div>${{factorHtml}}</div>` : ''}}
         ${{profileHtml ? `<div class="section-list" style="margin-top:10px">${{profileHtml}}</div>` : ''}}
         ${{newsHtml ? `<div class="section-list" style="margin-top:10px"><div class="meta">页面新闻线索</div>${{newsHtml}}</div>` : ''}}
       </div>
