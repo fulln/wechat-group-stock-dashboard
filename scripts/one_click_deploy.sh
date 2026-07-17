@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-command local build, with optional market data and Cloudflare Pages deployment.
+# One-command local build, with market data and optional Cloudflare Pages deployment.
 
 set -euo pipefail
 
@@ -33,7 +33,7 @@ WRANGLER_BIN="${WRANGLER_BIN:-$(command -v wrangler || true)}"
 
 DO_DEPLOY=0
 CREATE_PROJECT=0
-WITH_MARKET_DATA="${WITH_MARKET_DATA:-0}"
+WITH_MARKET_DATA="${WITH_MARKET_DATA:-1}"
 
 usage() {
   cat <<EOF
@@ -46,14 +46,14 @@ Input options:
 Environment:
   OUT_DIR                        default: ./exports/group_stock_dashboard
   RUN_DATE                       default: first date in CHAT_MD, or today
-  WITH_MARKET_DATA               default: 0; set 1 to fetch Google Finance and intraday data
+  WITH_MARKET_DATA               default: 1; set 0 or pass --no-market-data to skip market fetches
   CHAT_STOCK_SELF_NAME           optional display name for exported sender "me"
   CF_PAGES_PROJECT_NAME          default: group-stock-dashboard
   CF_PAGES_BRANCH                default: main
 
 Examples:
   CHAT_MD=examples/sample_chat.md $0
-  CHAT_MD=examples/sample_chat.md $0 --with-market-data
+  CHAT_MD=examples/sample_chat.md $0 --no-market-data
   WECHAT_GROUP_NAME="My Group" $0
   CHAT_MD=exports/raw/2026-07-17.md $0 --deploy --create-project
 EOF
@@ -153,9 +153,9 @@ final_args=(
   --markdown "$STOCK_MD"
   --page-history "$HISTORY_JSON"
 )
+final_args+=(--speaker-dashboard-href "speakers.html")
 if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
   final_args+=(--google-finance "$GF_JSON" --stock-trends "$TRENDS_JSON")
-  final_args+=(--speaker-dashboard-href "speakers.html")
 else
   final_args+=(--no-google-finance)
 fi
@@ -173,17 +173,19 @@ cp "$STOCK_HTML" "$OUT_DIR/${RUN_DATE}.html"
   fi
 } > "$OUT_DIR/_redirects"
 
-if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
-  echo "==> build speaker dashboard"
-  "$PYTHON_BIN" "$ROOT/build_speaker_stock_dashboard.py" \
-    --input-dir "$OUT_DIR" \
-    --output "$SPEAKERS_HTML" \
-    --json "$SPEAKERS_JSON" \
-    --daily-k "$SPEAKER_DAILY_K" \
-    --days 15
-else
-  echo "==> skip market data and speaker dashboard (pass --with-market-data to enable)"
+echo "==> build speaker dashboard"
+speaker_args=(
+  "$ROOT/build_speaker_stock_dashboard.py"
+  --input-dir "$OUT_DIR"
+  --output "$SPEAKERS_HTML"
+  --json "$SPEAKERS_JSON"
+  --daily-k "$SPEAKER_DAILY_K"
+  --days 15
+)
+if [[ "$WITH_MARKET_DATA" -ne 1 ]]; then
+  speaker_args+=(--no-daily-k)
 fi
+"$PYTHON_BIN" "${speaker_args[@]}"
 
 echo "==> output: $OUT_DIR/index.html"
 

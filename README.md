@@ -9,8 +9,8 @@ reuse. It focuses on four things:
 
 - stock mention detection
 - group sentiment, sector, and market-context summaries
-- optional Google Finance quote snapshots
-- optional intraday and speaker-centric charts
+- Google Finance quote snapshots by default
+- intraday and speaker-centric charts by default
 
 It does not require a server. The output is static HTML/JSON that can be opened
 locally or hosted on any static host. Cloudflare Pages deployment is optional.
@@ -48,19 +48,21 @@ python3 build_stock_mentions.py examples/sample_chat.md \
 
 Open `exports/sample/index.html` in a browser.
 
-Or use the one-command wrapper. It does not fetch Google Finance by default:
+Or use the one-command wrapper. It fetches Google Finance, intraday lines, and
+speaker-page daily K data by default:
 
 ```bash
 CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh
 ```
 
-## Add Google Finance And Intraday Charts
+## Skip Market Data
 
 ```bash
-CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --with-market-data
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --no-market-data
 ```
 
-Or run the individual steps:
+The speaker page is still generated in this mode, but its daily K data is
+marked as disabled. You can also run the market-data steps individually:
 
 ```bash
 python3 fetch_google_finance_snapshot.py \
@@ -111,8 +113,9 @@ WECHAT_GROUP_NAME="My Group" ./scripts/daily_group_stock_dashboard.sh
 ```
 
 The script writes to `exports/group_stock_dashboard/YYYY-MM-DD/`, updates
-`page_history.json`, and refreshes `index.html`. Add `--with-market-data` to
-also fetch Google Finance, intraday lines, and build `speakers.html`.
+`page_history.json`, refreshes `index.html`, and builds `speakers.html`. It
+fetches Google Finance, intraday lines, and speaker-page daily K data by
+default. Add `--no-market-data` for a lightweight/offline run.
 
 To display exported sender `me` as another name:
 
@@ -138,10 +141,11 @@ CHAT_MD=/path/to/chat.md \
 ./scripts/one_click_deploy.sh --deploy --create-project
 ```
 
-Add `--with-market-data` when you want Google Finance and intraday chart data:
+Add `--no-market-data` when you want to deploy without Google Finance, intraday
+chart data, or speaker-page daily K data:
 
 ```bash
-CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --with-market-data --deploy
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --no-market-data --deploy
 ```
 
 Backfill gently:
@@ -151,7 +155,8 @@ WECHAT_GROUP_NAME="My Group" \
 ./scripts/backfill_group_stock_dashboard.sh --days 15 --sleep-seconds 600 --deploy
 ```
 
-Add `--with-market-data` only when you also want Google Finance and intraday snapshots for each day.
+Add `--no-market-data` when you want to skip Google Finance, intraday snapshots,
+and speaker-page daily K data for each day.
 
 ## Configure Stocks
 

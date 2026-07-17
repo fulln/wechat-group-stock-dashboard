@@ -11,9 +11,9 @@
 
 - 标记群里出现的股票
 - 统计股票、情绪、板块、大盘相关讨论
-- 可选抓取 Google Finance 快照
-- 可选抓取 A 股分时线，并把群聊发言标在折线上
-- 可选生成人物维度页面：按发言人查看提到过的股票和日 K
+- 默认抓取 Google Finance 快照
+- 默认抓取 A 股分时线，并把群聊发言标在折线上
+- 生成人物维度页面：按发言人查看提到过的股票；默认抓取日 K
 - 可选发布到 Cloudflare Pages
 
 ## 输入格式
@@ -34,7 +34,7 @@
 
 ## 最快体验
 
-默认不抓 Google Finance，也不抓分时行情，只用示例聊天生成页面：
+默认会抓 Google Finance、分时行情和人物页日 K；会生成主看板和人物页：
 
 ```bash
 CHAT_MD=examples/sample_chat.md ./scripts/one_click_deploy.sh
@@ -57,13 +57,14 @@ CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
 默认会执行：
 
 1. 识别股票并生成基础 JSON
-2. 生成最终 HTML
-3. 更新历史记录
+2. 抓取 Google Finance 快照、分时线和人物页日 K
+3. 生成最终 HTML
+4. 更新历史记录
 
-如果需要 Google Finance 快照、分时图、发言人股票图谱，加 `--with-market-data`：
+如果只想本地快速生成、不抓外部行情，加 `--no-market-data`：
 
 ```bash
-CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --with-market-data
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --no-market-data
 ```
 
 ## 从 wechat-cli 直接导出
@@ -109,10 +110,10 @@ CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --deploy
 WECHAT_GROUP_NAME="你的群名" ./scripts/one_click_deploy.sh --deploy
 ```
 
-要同时抓 Google Finance 和分时行情：
+如果部署时也想跳过 Google Finance、分时行情和人物页日 K：
 
 ```bash
-CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --with-market-data --deploy
+CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh --no-market-data --deploy
 ```
 
 ## 回填最近 15 天
@@ -124,10 +125,10 @@ WECHAT_GROUP_NAME="你的群名" \
 ./scripts/backfill_group_stock_dashboard.sh --days 15 --deploy
 ```
 
-如果要每天都抓 Google Finance 和分时行情，再加：
+默认会每天抓 Google Finance、分时行情和人物页日 K。如果要跳过外部行情，再加：
 
 ```bash
---with-market-data
+--no-market-data
 ```
 
 先看会跑哪些日期：

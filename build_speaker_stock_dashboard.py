@@ -203,6 +203,14 @@ def hydrate_daily_k(stocks: dict, cache_path: Path, timeout: int) -> dict:
     return cache
 
 
+def disabled_daily_k(stocks: dict) -> dict:
+    return {
+        "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "note": "日 K 抓取已关闭；使用 --with-market-data 或取消 --no-daily-k 后可生成走势数据。",
+        "items": {stock_id: {"status": "disabled", "points": []} for stock_id in stocks},
+    }
+
+
 def attach_chart_data(stocks: dict, daily_k: dict) -> None:
     for stock_id, stock in stocks.items():
         stock["dailyK"] = daily_k.get("items", {}).get(stock_id, {"status": "missing", "points": []})
@@ -527,10 +535,11 @@ def main() -> None:
     parser.add_argument("--daily-k", type=Path, default=Path("exports/group_stock_dashboard/speaker_daily_k.json"))
     parser.add_argument("--days", type=int, default=15)
     parser.add_argument("--timeout", type=int, default=30)
+    parser.add_argument("--no-daily-k", action="store_true", help="生成发言人页面但不抓取日 K 数据")
     args = parser.parse_args()
 
     speakers, stocks, dates = collect(args.input_dir, args.days)
-    daily_k = hydrate_daily_k(stocks, args.daily_k, args.timeout)
+    daily_k = disabled_daily_k(stocks) if args.no_daily_k else hydrate_daily_k(stocks, args.daily_k, args.timeout)
     attach_chart_data(stocks, daily_k)
     payload = {
         "generatedAt": dt.datetime.now().astimezone().isoformat(),

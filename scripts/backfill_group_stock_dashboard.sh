@@ -35,7 +35,7 @@ SLEEP_SECONDS=600
 DO_DEPLOY=0
 FORCE=0
 DRY_RUN=0
-WITH_MARKET_DATA="${WITH_MARKET_DATA:-0}"
+WITH_MARKET_DATA="${WITH_MARKET_DATA:-1}"
 
 usage() {
   cat <<EOF
@@ -45,7 +45,7 @@ Defaults:
   --days 15
   --end-date today
   --sleep-seconds 600
-  --no-market-data (default)
+  --with-market-data (default; pass --no-market-data for lightweight/offline runs)
 
 The script runs one date at a time from old to new. Complete date folders are
 skipped unless --force is provided.
@@ -159,12 +159,10 @@ refresh_current_entry() {
       )
       if [[ -s "$OUT_DIR/$day/google_finance_snapshot.json" && -s "$OUT_DIR/$day/stock_trends.json" ]]; then
         final_args+=(--google-finance "$OUT_DIR/$day/google_finance_snapshot.json" --stock-trends "$OUT_DIR/$day/stock_trends.json")
-        if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
-          final_args+=(--speaker-dashboard-href "speakers.html")
-        fi
       else
         final_args+=(--no-google-finance)
       fi
+      final_args+=(--speaker-dashboard-href "speakers.html")
       "$PYTHON_BIN" "${final_args[@]}"
       cp "$OUT_DIR/$day/index.html" "$OUT_DIR/stock_mentions.html"
       cp "$OUT_DIR/$day/index.html" "$OUT_DIR/index.html"
@@ -179,16 +177,18 @@ refresh_current_entry() {
 }
 
 refresh_speaker_dashboard() {
-  if [[ "$WITH_MARKET_DATA" -ne 1 ]]; then
-    echo "==> skip speaker dashboard (pass --with-market-data to enable)"
-    return 0
-  fi
-  "$PYTHON_BIN" "$ROOT/build_speaker_stock_dashboard.py" \
-    --input-dir "$OUT_DIR" \
-    --output "$OUT_DIR/speakers.html" \
-    --json "$OUT_DIR/speakers.json" \
-    --daily-k "$OUT_DIR/speaker_daily_k.json" \
+  speaker_args=(
+    "$ROOT/build_speaker_stock_dashboard.py"
+    --input-dir "$OUT_DIR"
+    --output "$OUT_DIR/speakers.html"
+    --json "$OUT_DIR/speakers.json"
+    --daily-k "$OUT_DIR/speaker_daily_k.json"
     --days 15
+  )
+  if [[ "$WITH_MARKET_DATA" -ne 1 ]]; then
+    speaker_args+=(--no-daily-k)
+  fi
+  "$PYTHON_BIN" "${speaker_args[@]}"
 }
 
 echo "==> backfill range: $START_DATE -> $END_DATE (${#DATES[@]} days)"
