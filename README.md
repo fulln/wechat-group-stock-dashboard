@@ -38,6 +38,33 @@ format above.
 
 ## Quick Start
 
+Install the local Python environment, build the sample dashboard, and open the
+generated static HTML:
+
+```bash
+./start.sh
+```
+
+Use your own chat export:
+
+```bash
+./start.sh --chat-md /path/to/chat.md
+```
+
+Useful variants:
+
+```bash
+./start.sh --chat-md /path/to/chat.md --no-market-data
+./start.sh --chat-md /path/to/chat.md --market-channel sina
+./start.sh --group-name "My Group"
+./start.sh --install-skill
+```
+
+The generated page is `exports/group_stock_dashboard/index.html`. No server is
+started; the script opens the static file when possible.
+
+## Manual Build
+
 ```bash
 python3 build_stock_mentions.py examples/sample_chat.md \
   --html exports/sample/index.html \
@@ -48,7 +75,7 @@ python3 build_stock_mentions.py examples/sample_chat.md \
 
 Open `exports/sample/index.html` in a browser.
 
-Or use the one-command wrapper. It fetches market snapshots, intraday lines, and
+Or use the build wrapper directly. It fetches market snapshots, intraday lines, and
 speaker-page daily K data by default. Snapshot channel `auto` keeps Google
 Finance as the primary source and falls back to Sina quote when needed:
 

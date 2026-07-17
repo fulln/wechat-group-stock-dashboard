@@ -34,6 +34,37 @@
 
 ## 最快体验
 
+一条命令安装本地环境、用示例聊天生成页面并打开静态 HTML：
+
+```bash
+./start.sh
+```
+
+使用自己的聊天导出：
+
+```bash
+./start.sh --chat-md /path/to/chat.md
+```
+
+常用变体：
+
+```bash
+./start.sh --chat-md /path/to/chat.md --no-market-data
+./start.sh --chat-md /path/to/chat.md --market-channel sina
+./start.sh --group-name "你的群名"
+./start.sh --install-skill
+```
+
+输出文件：
+
+```text
+exports/group_stock_dashboard/index.html
+```
+
+项目不启动服务；脚本会在本机可用时直接打开生成的静态 HTML。
+
+## 手动生成
+
 默认会抓行情快照、分时行情和人物页日 K；行情快照默认 `auto` 渠道：
 Google Finance 优先，失败时用新浪报价兜底。会生成主看板和人物页：
 

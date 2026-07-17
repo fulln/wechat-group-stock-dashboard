@@ -8,6 +8,16 @@ license = "MIT"
 authors = [{ name = "fulln" }]
 dependencies = []
 
+[tool.setuptools]
+py-modules = [
+  "build_speaker_stock_dashboard",
+  "build_stock_mentions",
+  "chat_export",
+  "fetch_google_finance_snapshot",
+  "fetch_stock_trends",
+  "update_page_history",
+]
+
 [tool.ruff]
 line-length = 120
 target-version = "py310"
