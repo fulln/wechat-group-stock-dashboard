@@ -7,7 +7,7 @@ import datetime as dt
 import json
 import os
 import re
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -36,15 +36,18 @@ def parse_float(value: object) -> float | None:
 
 
 def a_share_symbol(stock: dict) -> str | None:
-    market = str(stock.get("market") or "")
+    market = str(stock.get("market") or "").upper()
     code = str(stock.get("code") or "")
+    mainland_markets = {"A股", "CN", "SH", "SHSE", "SSE", "SSE STAR", "SZ", "SZSE"}
+    if market not in mainland_markets:
+        return None
     match = re.search(r"\d{6}", code)
     if not match:
         return None
     base_code = match.group(0)
-    if market == "SZ" or base_code.startswith(("000", "001", "002", "003", "300", "301")):
+    if market in {"SZ", "SZSE"} or base_code.startswith(("000", "001", "002", "003", "300", "301")):
         return f"sz{base_code}"
-    if market == "SH" or base_code.startswith(("600", "601", "603", "605", "688", "689")):
+    if market in {"SH", "SHSE", "SSE", "SSE STAR"} or base_code.startswith(("600", "601", "603", "605", "688", "689")):
         return f"sh{base_code}"
     return None
 
@@ -170,7 +173,7 @@ def hydrate_daily_k(stocks: dict, cache_path: Path, timeout: int) -> dict:
     for stock_id, stock in sorted(stocks.items(), key=lambda row: row[1]["name"]):
         symbol = stock.get("symbol")
         if not symbol:
-            items.setdefault(stock_id, {"status": "unmapped", "points": []})
+            items[stock_id] = {"status": "unmapped", "points": []}
             continue
         cached = items.get(stock_id) or {}
         if cached.get("symbol") == symbol and cached.get("fetchedDate") == today and cached.get("points"):

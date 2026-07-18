@@ -175,7 +175,7 @@ function renderPageHistory(pageHistory) {
     toggle.dataset.bound = '1';
   }
   rootHistory.replaceChildren();
-  pageHistory.slice(0, 10).forEach(item => {
+  pageHistory.slice(0, 15).forEach(item => {
     const link = document.createElement('a');
     link.className = `history-link ${item.date === S.page_history?.current_date ? 'active' : ''}`;
     link.href = versionedHref(item);

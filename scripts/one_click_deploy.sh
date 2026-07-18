@@ -35,6 +35,8 @@ DO_DEPLOY=0
 CREATE_PROJECT=0
 WITH_MARKET_DATA="${WITH_MARKET_DATA:-1}"
 MARKET_DATA_CHANNEL="${MARKET_DATA_CHANNEL:-auto}"
+CODEX_ANALYSIS_JSON="${CODEX_ANALYSIS_JSON:-}"
+STOCK_ANALYSIS_MODE="${STOCK_ANALYSIS_MODE:-codex}"
 
 usage() {
   cat <<EOF
@@ -50,6 +52,10 @@ Environment:
   WITH_MARKET_DATA               default: 1; set 0 or pass --no-market-data to skip market fetches
   MARKET_DATA_CHANNEL            default: auto; one of auto, google, sina
   CHAT_STOCK_SELF_NAME           optional display name for exported sender "me"
+  CODEX_ANALYSIS_JSON            optional Codex semantic-analysis JSON; bypasses built-in matching rules
+  STOCK_ANALYSIS_MODE            default: codex; set rules to use the legacy dictionary matcher
+  CODEX_BIN                      default: codex
+  CODEX_MODEL                    default: gpt-5.4-mini
   CF_PAGES_PROJECT_NAME          default: group-stock-dashboard
   CF_PAGES_BRANCH                default: main
 
@@ -124,11 +130,29 @@ else
 fi
 
 echo "==> build stock list"
-"$PYTHON_BIN" "$ROOT/build_stock_mentions.py" "$CHAT_OUT" \
-  --html "$STOCK_HTML" \
-  --json "$STOCK_JSON" \
-  --markdown "$STOCK_MD" \
+ANALYSIS_JSON_PATH=""
+if [[ -n "$CODEX_ANALYSIS_JSON" ]]; then
+  ANALYSIS_JSON_PATH="$CODEX_ANALYSIS_JSON"
+elif [[ "$STOCK_ANALYSIS_MODE" == "codex" ]]; then
+  CODEX_ANALYSIS_JSON="$DATED_DIR/codex_analysis.json"
+  echo "==> analyze stocks with Codex semantic context"
+  "$PYTHON_BIN" "$ROOT/codex_stock_analysis.py" "$CHAT_OUT" --output "$CODEX_ANALYSIS_JSON"
+  ANALYSIS_JSON_PATH="$CODEX_ANALYSIS_JSON"
+elif [[ "$STOCK_ANALYSIS_MODE" != "rules" ]]; then
+  echo "STOCK_ANALYSIS_MODE must be codex or rules: $STOCK_ANALYSIS_MODE" >&2
+  exit 2
+fi
+build_args=(
+  "$ROOT/build_stock_mentions.py" "$CHAT_OUT"
+  --html "$STOCK_HTML"
+  --json "$STOCK_JSON"
+  --markdown "$STOCK_MD"
   --no-google-finance
+)
+if [[ -n "$ANALYSIS_JSON_PATH" ]]; then
+  build_args+=(--analysis-json "$ANALYSIS_JSON_PATH")
+fi
+"$PYTHON_BIN" "${build_args[@]}"
 
 if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
   echo "==> fetch market snapshot ($MARKET_DATA_CHANNEL)"
@@ -156,6 +180,9 @@ final_args=(
   --page-history "$HISTORY_JSON"
 )
 final_args+=(--speaker-dashboard-href "speakers.html")
+if [[ -n "$ANALYSIS_JSON_PATH" ]]; then
+  final_args+=(--analysis-json "$ANALYSIS_JSON_PATH")
+fi
 if [[ "$WITH_MARKET_DATA" -eq 1 ]]; then
   final_args+=(--google-finance "$GF_JSON" --stock-trends "$TRENDS_JSON")
 else
@@ -205,8 +232,5 @@ if [[ "$CREATE_PROJECT" -eq 1 ]]; then
   "$WRANGLER_BIN" pages project create "$PROJECT_NAME" --production-branch "$BRANCH" || true
 fi
 
-"$WRANGLER_BIN" pages deploy "$OUT_DIR" \
-  --project-name "$PROJECT_NAME" \
-  --branch "$BRANCH" \
-  --commit-dirty=true \
-  --commit-message "Publish group stock dashboard $RUN_DATE"
+WRANGLER_BIN="$WRANGLER_BIN" "$ROOT/scripts/deploy_public_pages.sh" \
+  "$OUT_DIR" "$PROJECT_NAME" "$BRANCH" "Publish group stock dashboard $RUN_DATE"

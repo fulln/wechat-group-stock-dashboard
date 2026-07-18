@@ -13,6 +13,7 @@ py-modules = [
   "build_speaker_stock_dashboard",
   "build_stock_mentions",
   "chat_export",
+  "codex_stock_analysis",
   "fetch_google_finance_snapshot",
   "fetch_stock_trends",
   "update_page_history",

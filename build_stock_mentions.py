@@ -552,7 +552,7 @@ def load_page_history(path: Path, current_date: str) -> dict | None:
     items = data.get("items")
     if not isinstance(items, list):
         raise SystemExit(f"页面记录格式不正确: {path}")
-    return {"current_date": current_date, "items": items[:10]}
+    return {"current_date": current_date, "items": items[:15]}
 
 
 def load_stock_trends(path: Path) -> dict | None:
@@ -568,6 +568,18 @@ def load_stock_trends(path: Path) -> dict | None:
     return normalize_sender_fields(data)
 
 
+def load_analysis(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"分析 JSON 无法解析: {path} ({exc})") from exc
+    required = {"stocks", "emotion", "sectors", "market"}
+    if not isinstance(data, dict) or not required.issubset(data):
+        missing = ", ".join(sorted(required - set(data) if isinstance(data, dict) else required))
+        raise SystemExit(f"分析 JSON 格式不正确: {path}（缺少 {missing}）")
+    return normalize_sender_fields(data)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("input", type=Path)
@@ -576,14 +588,15 @@ def main() -> None:
     parser.add_argument("--markdown", type=Path)
     parser.add_argument("--google-finance", type=Path, help="Google Finance 快照 JSON，默认读取导出文件同目录 google_finance_snapshot.json")
     parser.add_argument("--no-google-finance", action="store_true", help="不要读取 Google Finance 快照，用于每日任务的第一阶段标的识别")
-    parser.add_argument("--page-history", type=Path, help="页面记录 JSON，最多展示最近 10 个页面")
+    parser.add_argument("--page-history", type=Path, help="页面记录 JSON，最多展示最近 15 个页面")
     parser.add_argument("--stock-trends", type=Path, help="股票分钟线 JSON，用于分时折线和发言标记")
     parser.add_argument("--speaker-dashboard-href", default="", help="人物股票图谱入口，例如 speakers.html")
+    parser.add_argument("--analysis-json", type=Path, help="外部语义分析 JSON；提供时跳过内置词典/规则分析")
     args = parser.parse_args()
 
     chat_name, _header_count, messages = parse_export(args.input)
     date = messages[0].ts.strftime("%Y-%m-%d") if messages else ""
-    stats = analyze(messages)
+    stats = load_analysis(args.analysis_json) if args.analysis_json else analyze(messages)
     if not args.no_google_finance:
         google_finance_path = args.google_finance or args.input.with_name("google_finance_snapshot.json")
         google_finance = load_google_finance_snapshot(google_finance_path)

@@ -9,7 +9,7 @@
 
 ## 功能
 
-- 标记群里出现的股票
+- 默认由 Codex 结合完整聊天上下文识别股票、简称和跨消息指代
 - 统计股票、情绪、板块、大盘相关讨论
 - 默认抓取行情快照：Google Finance 优先，新浪报价兜底
 - 默认抓取 A 股分时线，并把群聊发言标在折线上
@@ -192,9 +192,32 @@ WECHAT_GROUP_NAME="你的群名" \
 ./scripts/backfill_group_stock_dashboard.sh --days 15 --dry-run
 ```
 
-## 自定义股票词典
+## 股票识别模式
 
-目前股票词典在 `build_stock_mentions.py` 里：
+默认识别模式是 Codex 语义分析，需要本机已安装并登录 `codex` CLI。它会读取完整聊天上下文，
+区分股票简称、板块、商品、汽车和人名等不同语境。可用环境变量选择模型：
+
+```bash
+CODEX_MODEL=gpt-5.4-mini CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
+```
+
+如需兼容旧版词典匹配，必须显式启用：
+
+```bash
+STOCK_ANALYSIS_MODE=rules CHAT_MD=/path/to/chat.md ./scripts/one_click_deploy.sh
+```
+
+也可以直接提供已生成的语义分析 JSON：
+
+```bash
+CODEX_ANALYSIS_JSON=/path/to/codex_analysis.json \
+CHAT_MD=/path/to/chat.md \
+./scripts/one_click_deploy.sh
+```
+
+### 旧版规则模式
+
+旧版股票词典在 `build_stock_mentions.py` 里：
 
 - `STOCKS`
 - `SECTOR_RULES`
@@ -202,8 +225,7 @@ WECHAT_GROUP_NAME="你的群名" \
 - `BEARISH_WORDS`
 - `MARKET_WORDS`
 
-这是一个小而偏手工的词典。开源版默认不会覆盖全部 A 股、港股、美股简称。
-如果你要用于自己的群，建议先补充常见简称。
+这是一个小而偏手工的兼容词典，不会覆盖全部 A 股、港股、美股简称。
 
 ## 自定义页面
 

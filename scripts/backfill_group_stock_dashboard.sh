@@ -159,6 +159,9 @@ refresh_current_entry() {
         --markdown "$OUT_DIR/$day/stock_mentions.md"
         --page-history "$OUT_DIR/page_history.json"
       )
+      if [[ -s "$OUT_DIR/$day/codex_analysis.json" ]]; then
+        final_args+=(--analysis-json "$OUT_DIR/$day/codex_analysis.json")
+      fi
       if [[ -s "$OUT_DIR/$day/google_finance_snapshot.json" && -s "$OUT_DIR/$day/stock_trends.json" ]]; then
         final_args+=(--google-finance "$OUT_DIR/$day/google_finance_snapshot.json" --stock-trends "$OUT_DIR/$day/stock_trends.json")
       else
@@ -243,11 +246,8 @@ if [[ "$DO_DEPLOY" -eq 1 ]]; then
     exit 1
   fi
   echo "==> deploy to Cloudflare Pages: $PROJECT_NAME / $BRANCH"
-  "$WRANGLER_BIN" pages deploy "$OUT_DIR" \
-    --project-name "$PROJECT_NAME" \
-    --branch "$BRANCH" \
-    --commit-dirty=true \
-    --commit-message "Backfill WeChat stock dashboard $START_DATE to $END_DATE"
+  WRANGLER_BIN="$WRANGLER_BIN" "$ROOT/scripts/deploy_public_pages.sh" \
+    "$OUT_DIR" "$PROJECT_NAME" "$BRANCH" "Backfill WeChat stock dashboard $START_DATE to $END_DATE"
 fi
 
 if [[ "${#FAILED[@]}" -gt 0 ]]; then

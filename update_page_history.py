@@ -21,7 +21,7 @@ def main() -> None:
     parser.add_argument("--title", required=True)
     parser.add_argument("--stock-json", type=Path, required=True)
     parser.add_argument("--version", default="")
-    parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--limit", type=int, default=15)
     args = parser.parse_args()
 
     stats = load_json(args.stock_json, {})
