@@ -266,3 +266,6 @@ cp -R codex-skill/wechat-group-stock-dashboard ~/.codex/skills/
 - 日志
 
 这些默认都已经在 `.gitignore` 里。
+
+## 感谢
+感谢 [LinuxDO](https://linux.do/) 社区的支持。
